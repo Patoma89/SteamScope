@@ -944,6 +944,8 @@ class DialogoActualizador(ctk.CTkToplevel):
     def _hilo_descargar_instalador(self, url_exe):
         try:
             r = HTTP_SESSION.get(url_exe, stream=True, timeout=15)
+            if r.status_code != 200:
+                raise Exception(f"El instalador aún no está disponible en GitHub Releases (código HTTP {r.status_code}).")
             total_len = int(r.headers.get('content-length', 0))
             destino = os.path.join(tempfile.gettempdir(), "SteamScope_Update_Setup.exe")
             descargado = 0
@@ -955,6 +957,21 @@ class DialogoActualizador(ctk.CTkToplevel):
                         if total_len > 0:
                             pct = descargado / total_len
                             self.after(0, lambda p=pct: self.progress.set(p) if self.winfo_exists() else None)
+
+            # Validar que sea un ejecutable de Windows real (encabezado PE 'MZ' y tamaño mínimo > 1 MB)
+            if descargado < 1024 * 1024:
+                try:
+                    if os.path.exists(destino): os.remove(destino)
+                except Exception: pass
+                raise Exception("El archivo descargado está incompleto o no es un instalador válido.")
+
+            with open(destino, "rb") as f_chk:
+                if f_chk.read(2) != b"MZ":
+                    try:
+                        if os.path.exists(destino): os.remove(destino)
+                    except Exception: pass
+                    raise Exception("El archivo descargado no es un ejecutable válido.")
+
             self.after(0, lambda: self._escribir_info("✅ Descarga completada. Ejecutando el instalador..."))
             time.sleep(1.2)
 
