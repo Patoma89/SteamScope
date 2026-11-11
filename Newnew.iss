@@ -19,10 +19,14 @@ AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
 
-; Permite elegir la ruta de instalación de forma interactiva
+; Forzar actualización sobre la misma carpeta sin duplicar
 PrivilegesRequired=lowest
 DefaultDirName={autopf}\{#MyAppName}
+UsePreviousAppDir=yes
+DisableDirPage=auto
 DefaultGroupName={#MyAppName}
+UsePreviousGroup=yes
+DisableProgramGroupPage=auto
 AllowNoIcons=yes
 
 ; Configuración del instalador final
@@ -33,12 +37,18 @@ Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
 
-; Desinstalador limpio
+; Desinstalador limpio y único en Windows (sin duplicar en lista de apps)
 UninstallDisplayIcon={app}\{#MyAppExeName}
-UninstallDisplayName={#MyAppName} v{#MyAppVersion}
+UninstallDisplayName={#MyAppName}
 
 [Languages]
 Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
+
+[InstallDelete]
+; Limpiar ejecutables temporales o antiguos en la carpeta de destino
+Type: files; Name: "{app}\SteamScope_*.exe"
+Type: files; Name: "{app}\*.old"
+Type: files; Name: "{app}\*.tmp"
 
 [Files]
 ; Archivo ejecutable único generado por PyInstaller en modo --onefile
@@ -46,9 +56,9 @@ Source: "dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "icono.ico"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-; Accesos directos en el menú de inicio y escritorio (usando {userdesktop} compatible sin admin)
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\icono.ico"
-Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\icono.ico"
+; Accesos directos en el menú de inicio y escritorio (apuntando a WorkingDir)
+Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\icono.ico"; WorkingDir: "{app}"
+Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\icono.ico"; WorkingDir: "{app}"
 Name: "{group}\Desinstalar {#MyAppName}"; Filename: "{uninstallexe}"
 
 [Run]
@@ -57,7 +67,6 @@ Filename: "{app}\{#MyAppExeName}"; Description: "Ejecutar SteamScope al finaliza
 
 [Code]
 // Limpieza de variables de entorno heredadas de PyInstaller (_MEIPASS2)
-// para evitar el diálogo "Failed to load Python DLL" al reiniciar
 function SetEnvironmentVariable(lpName: String; lpValue: String): Boolean;
 external 'SetEnvironmentVariableW@kernel32.dll stdcall';
 
@@ -68,13 +77,38 @@ begin
   Result := True;
 end;
 
-// Cierre automático del proceso en caso de actualización con la app abierta
+// Desinstalación silenciosa de versiones heredadas que usaban el AppId antiguo
+procedure DesinstalarVersionHeredada(RootKey: Integer; SubKey: String);
+var
+  UninstCmd: String;
+  ResultCode: Integer;
+begin
+  if RegQueryStringValue(RootKey, SubKey, 'QuietUninstallString', UninstCmd) or
+     RegQueryStringValue(RootKey, SubKey, 'UninstallString', UninstCmd) then
+  begin
+    UninstCmd := RemoveQuotes(UninstCmd);
+    if FileExists(UninstCmd) then
+    begin
+      Exec(UninstCmd, '/SILENT /VERYSILENT /SUPPRESSMSGBOXES /NORESTART', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    end;
+  end;
+end;
+
+// Cierre automático del proceso y limpieza antes de instalar
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   ResultCode: Integer;
 begin
   SetEnvironmentVariable('_MEIPASS2', '');
   SetEnvironmentVariable('_MEIPASS', '');
+
+  // 1. Cerrar procesos activos de SteamScope para liberar archivos bloqueados
   Exec('taskkill.exe', '/F /IM SteamScope.exe /T', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Sleep(400);
+
+  // 2. Limpiar versiones antiguas que se hayan instalado con nombres o IDs previos
+  DesinstalarVersionHeredada(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\SteamScope_is1');
+  DesinstalarVersionHeredada(HKLM, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\SteamScope_is1');
+
   Result := '';
 end;
