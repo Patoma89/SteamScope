@@ -1,0 +1,10 @@
+{
+  "version": "v2.0.1",
+  "url": "https://github.com/Patoma89/SteamScope/releases/download/v2.0.1/SteamScope_v2.0.1_Setup.exe",
+  "notas": [
+    "🩹 Corrección en Ficha Técnica: Solucionado el fallo que impedía guardar o editar notas personales privadas.",
+    "📐 Diseño y Botonera Blindada: Barra inferior ensanchada para asegurar que el botón 'Compartir' no se corte y 'Cerrar' quede visible.",
+    "🌐 Descuento dinámico en botón Web: Detección en vivo de ofertas evitando porcentajes estáticos incorrectos.",
+    "🔄 Sincronización instantánea: Refresco automático e inmediato de la Watchlist al actualizar apuntes de juegos."
+  ]
+}

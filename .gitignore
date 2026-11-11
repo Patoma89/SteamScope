@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller / Inno Setup Binaries
+Output/
+*.exe
+*.manifest
+*.spec.bak
+*.rar
+*.zip
+*.7z
+
+# Archivos temporales o de desarrollo
+import os.py
+crear_carpetas.py
+
+# Base de datos local y temporales
+*.db
+*.sqlite
+*.sqlite3
+*.log
+
+# Entornos virtuales y configuraciones locales
+.venv/
+.env
+
+# Archivos de sistema / IDEs
+.idea/
+.vscode/
+*.swp
+Thumbs.db
+Desktop.ini
+
+# Mantener las skills y reglas de Gemini / Antigravity en Git
+!.agents/
+!.agents/skills/**
+!GEMINI.md
