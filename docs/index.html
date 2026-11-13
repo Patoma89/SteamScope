@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="es" data-skin="Neón P89">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SteamScope v2.0.1 — Monitor Pro de Ofertas Steam, Epic &amp; GOG | by Patoma89</title>
+  <meta name="description" content="Cazá ofertas de Steam al precio real en USD y ARS (Tarjeta vs. Cripto). Radar Multi-Tienda Epic &amp; GOG, Gestor de Cromos, Modo Consola XInput y alertas de Mínimos Históricos (ATL)." />
+  <meta property="og:title" content="SteamScope v2.0.1 — Monitor Pro de Ofertas Steam" />
+  <meta property="og:description" content="Dólar Tarjeta vs. Cripto en vivo, Radar Epic &amp; GOG, Gestor de Cromos, Modo Steam Deck y alertas ATL para Windows." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://patoma89.github.io/SteamScope/" />
+  <link rel="icon" type="image/x-icon" href="assets/favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Ambient background glow -->
+  <div class="bg-glow bg-glow-1" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow-2" aria-hidden="true"></div>
+
+  <!-- Navbar -->
+  <header class="navbar">
+    <div class="container nav-inner">
+      <a href="#top" class="brand">
+        <img src="assets/favicon.ico" alt="SteamScope Logo" class="brand-icon" />
+        <span class="brand-name">SteamScope</span>
+        <span class="version-pill">v2.0.1</span>
+      </a>
+
+      <nav class="nav-links" aria-label="Navegación principal">
+        <a href="#pilares">Pilares 2.0</a>
+        <a href="#suite">Herramientas</a>
+        <a href="#skins">Skins</a>
+        <a href="#changelog">Changelog</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+
+      <div class="nav-actions">
+        <label class="skin-select-wrap" title="Cambiar skin de SteamScope en vivo">
+          <span class="skin-select-label">🎨</span>
+          <select id="nav-skin-select" aria-label="Seleccionar skin">
+            <option value="Neón P89">Neón P89</option>
+            <option value="Steam Deck OLED">Steam Deck OLED</option>
+            <option value="Oscuro">Oscuro</option>
+            <option value="Claro">Claro</option>
+            <option value="Modo Drácula">Modo Drácula</option>
+            <option value="Retro Synthwave">Retro Synthwave</option>
+            <option value="Terminal Pip-Boy">Terminal Pip-Boy</option>
+            <option value="Halloween Terror">Halloween Terror</option>
+          </select>
+        </label>
+        <a href="https://github.com/Patoma89/SteamScope/releases/download/v2.0.1/SteamScope_v2.0.1_Setup.exe" class="btn btn-primary btn-sm">
+          ⬇ Descargar
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main id="top">
+    <!-- Hero Section -->
+    <section class="hero">
+      <div class="container hero-grid">
+        <div class="hero-copy">
+          <div class="hero-badge">
+            <span class="pulse-dot"></span>
+            <span>Lanzamiento v2.0.1 • Windows 10 / 11 • Open Source</span>
+          </div>
+          <h1>
+            Cazá ofertas de Steam al <span class="text-gradient">precio real</span> en USD y ARS.
+          </h1>
+          <p class="hero-subtitle">
+            Monitor de rebajas en tiempo real con comparador <strong>Dólar Tarjeta vs. Cripto</strong>,
+            Radar Multi-Tienda (<strong>Epic &amp; GOG</strong>), <strong>Gestor de Cromos</strong>,
+            <strong>Modo Consola XInput</strong> y centinela de <strong>Mínimos Históricos (ATL)</strong>.
+          </p>
+
+          <div class="hero-cta">
+            <a href="https://github.com/Patoma89/SteamScope/releases/download/v2.0.1/SteamScope_v2.0.1_Setup.exe" class="btn btn-primary btn-lg">
+              <span>⬇</span> Descargar Instalador (v2.0.1)
+            </a>
+            <a href="https://github.com/Patoma89/SteamScope" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-lg">
+              <span>⭐</span> Ver en GitHub
+            </a>
+          </div>
+
+          <div class="hero-specs">
+            <div class="spec-item"><strong>0 ms</strong><span>Caché SQLite WAL</span></div>
+            <div class="spec-item"><strong>8+</strong><span>Skins Dinámicas</span></div>
+            <div class="spec-item"><strong>XInput</strong><span>Xbox / PS / Deck</span></div>
+            <div class="spec-item"><strong>100%</strong><span>Sin Telemetría</span></div>
+          </div>
+        </div>
+
+        <!-- Interactive App Preview Mockup -->
+        <div class="hero-mockup" aria-label="Vista previa interactiva de SteamScope">
+          <div class="mockup-window">
+            <div class="mockup-titlebar">
+              <div class="mockup-title">
+                <img src="assets/favicon.ico" alt="" class="mockup-mini-icon" />
+                <span>⚡ SteamScope v2.0.1 | by Patoma89</span>
+              </div>
+              <div class="mockup-controls">
+                <span class="dot"></span><span class="dot"></span><span class="dot dot-close"></span>
+              </div>
+            </div>
+
+            <div class="mockup-toolbar">
+              <div class="currency-toggle" role="group" aria-label="Selector de moneda en vista previa">
+                <button type="button" class="curr-btn active" data-curr="cripto">🪙 ARS Cripto</button>
+                <button type="button" class="curr-btn" data-curr="tarjeta">💳 ARS Tarjeta</button>
+                <button type="button" class="curr-btn" data-curr="usd">💵 USD</button>
+              </div>
+              <span class="mockup-kpi-pill">⭐ 2 Récords ATL</span>
+              <span class="mockup-kpi-pill">🎁 1 Gratis Epic</span>
+            </div>
+
+            <div class="mockup-cards">
+              <!-- Card 1 -->
+              <article class="deal-card">
+                <div class="deal-main">
+                  <div class="deal-badges">
+                    <span class="badge-atl">⭐ RÉCORD ATL</span>
+                    <span class="badge-deck">🟢 Deck Verified</span>
+                    <span class="badge-cards">🃏 Cromos</span>
+                  </div>
+                  <h3>Cyberpunk 2077: Ultimate</h3>
+                  <p class="deal-meta">RPG • Mundo Abierto • Termina en 18h 40m</p>
+                </div>
+                <div class="deal-price-box">
+                  <span class="discount-badge">-65%</span>
+                  <div class="price-stack">
+                    <span class="price-old" data-usd="$44.99" data-tarjeta="ARS 71.984" data-cripto="ARS 56.237">$44.99</span>
+                    <strong class="price-now" data-usd="$15.74" data-tarjeta="ARS 25.184" data-cripto="ARS 19.675">ARS 19.675</strong>
+                  </div>
+                </div>
+              </article>
+
+              <!-- Card 2 -->
+              <article class="deal-card">
+                <div class="deal-main">
+                  <div class="deal-badges">
+                    <span class="badge-atl">⭐ RÉCORD ATL</span>
+                    <span class="badge-coop">🤝 Co-op Online</span>
+                  </div>
+                  <h3>Deep Rock Galactic</h3>
+                  <p class="deal-meta">FPS Táctico • 4 Jugadores • 3.2 GB</p>
+                </div>
+                <div class="deal-price-box">
+                  <span class="discount-badge">-75%</span>
+                  <div class="price-stack">
+                    <span class="price-old" data-usd="$14.99" data-tarjeta="ARS 23.984" data-cripto="ARS 18.737">$14.99</span>
+                    <strong class="price-now" data-usd="$3.74" data-tarjeta="ARS 5.984" data-cripto="ARS 4.675">ARS 4.675</strong>
+                  </div>
+                </div>
+              </article>
+
+              <!-- Card 3 -->
+              <article class="deal-card">
+                <div class="deal-main">
+                  <div class="deal-badges">
+                    <span class="badge-free">🎁 100% GRATIS</span>
+                    <span class="badge-store">🌐 Epic Store</span>
+                  </div>
+                  <h3>Control: Ultimate Edition</h3>
+                  <p class="deal-meta">Acción • Reclamo semanal directo</p>
+                </div>
+                <div class="deal-price-box">
+                  <span class="discount-badge discount-free">-100%</span>
+                  <div class="price-stack">
+                    <span class="price-old" data-usd="$19.99" data-tarjeta="ARS 31.984" data-cripto="ARS 24.987">$19.99</span>
+                    <strong class="price-now">GRATIS</strong>
+                  </div>
+                </div>
+              </article>
+            </div>
+
+            <div class="mockup-statusbar">
+              <span>🛒 Changuito: 2 juegos • Ahorro: <strong>-21% Web</strong></span>
+              <span class="kbd-hint">Ctrl+K Palette</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 Pilares 2.0 -->
+    <section id="pilares" class="section">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-eyebrow">ACTUALIZACIÓN 2.0</span>
+          <h2>Los 4 pilares de SteamScope</h2>
+          <p>Diseñado desde cero con arquitectura modular en Python, SQLite en modo WAL y cero bloqueos en la interfaz.</p>
+        </div>
+
+        <div class="bento-grid">
+          <article class="bento-card">
+            <div class="bento-icon">🌐</div>
+            <h3>Radar Multi-Tienda (Epic &amp; GOG)</h3>
+            <p>Monitor integrado de juegos gratis semanales en Epic Games Store y catálogo sin DRM de GOG, con detección de tiempo límite y reclamo directo en 1 clic.</p>
+          </article>
+
+          <article class="bento-card">
+            <div class="bento-icon">🃏</div>
+            <h3>Gestor de Cromos &amp; Billetera</h3>
+            <p>Valorizador inteligente de tu inventario de cromos de Steam (calculando el -15% de comisión de mercado) para saber cuántos juegos podés fondear gratis.</p>
+          </article>
+
+          <article class="bento-card">
+            <div class="bento-icon">🎮</div>
+            <h3>Modo Consola &amp; Steam Deck</h3>
+            <p>Soporte nativo XInput para joysticks de Xbox, PlayStation y Steam Deck. Navegá ofertas, fichas y tu biblioteca desde el sillón con interfaz adaptativa 10ft.</p>
+          </article>
+
+          <article class="bento-card">
+            <div class="bento-icon">🔔</div>
+            <h3>Alertas Win 11 &amp; Centinela ATL</h3>
+            <p>Notificaciones push enriquecidas con carátula HD y precio USD/ARS. Al minimizar a la bandeja, vigila tu Wishlist y guarda el historial de mínimos históricos.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Suite de Herramientas (Tabs) -->
+    <section id="suite" class="section section-alt">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-eyebrow">ECOSISTEMA COMPLETO</span>
+          <h2>Mucho más que un buscador de rebajas</h2>
+          <p>Cada herramienta está pensada para ahorrar plata, tiempo y descubrir joyas ocultas en tu biblioteca.</p>
+        </div>
+
+        <div class="tabs-bar" role="tablist" aria-label="Categorías de herramientas">
+          <button type="button" class="tab-btn active" role="tab" aria-selected="true" data-tab="cotizacion">💵 Cotización &amp; Changuito</button>
+          <button type="button" class="tab-btn" role="tab" aria-selected="false" data-tab="biblioteca">📚 Biblioteca &amp; Co-op</button>
+          <button type="button" class="tab-btn" role="tab" aria-selected="false" data-tab="poweruser">⚡ Análisis &amp; Power-User</button>
+        </div>
+
+        <div class="tab-panels">
+          <div class="tab-panel active" id="tab-cotizacion">
+            <div class="feature-grid">
+              <div class="feature-item">
+                <h4>🪙 Dólar Tarjeta vs. Cripto en Vivo</h4>
+                <p>Cotización automática con DolarAPI y respaldo CriptoYa. Alterná todas las tarjetas entre USD, ARS Tarjeta y ARS Cripto en un clic.</p>
+              </div>
+              <div class="feature-item">
+                <h4>🌐 Acceso Steam Web (-21% Impuestos)</h4>
+                <p>Botón dedicado con descuento dinámico para abrir la tienda en el navegador y evitar percepciones impositivas innecesarias.</p>
+              </div>
+              <div class="feature-item">
+                <h4>🎯 Changuito &amp; Budget Tracker</h4>
+                <p>Fijá un presupuesto máximo en USD, seguí tu consumo con barra de progreso y mirá el ahorro global acumulado en tiempo real.</p>
+              </div>
+              <div class="feature-item">
+                <h4>📄 Exportador PNG, PDF &amp; Excel</h4>
+                <p>Generá placas PNG de tu changuito para Discord, reportes PDF ejecutivos con gráficos o planillas CSV/Excel (<code>utf-8-sig</code>).</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="tab-panel" id="tab-biblioteca">
+            <div class="feature-grid">
+              <div class="feature-item">
+                <h4>⚡ Caché SQLite 0ms + Paginación</h4>
+                <p>Importá bibliotecas de +600 juegos con tu Steam API Key y navegá paginado de a 30 títulos al instante sin tirones.</p>
+              </div>
+              <div class="feature-item">
+                <h4>💰 Valuador de Cuenta &amp; $/Hora</h4>
+                <p>Calculá cuánto vale tu cuenta en USD y ARS, cuántos juegos tenés sin estrenar (0 hs) y tu ratio real de costo por hora jugada.</p>
+              </div>
+              <div class="feature-item">
+                <h4>🤝 Radar Co-op con Amigos</h4>
+                <p>Cruzá tu biblioteca con el Steam ID o Vanity URL de un amigo para ver juegos multijugador en común o descubrir ofertas Co-op.</p>
+              </div>
+              <div class="feature-item">
+                <h4>🎰 Ruleta Loot Box &quot;Spin-In-Place&quot;</h4>
+                <p>¿No sabés qué jugar o qué sumar al changuito? Sorteo continuo a 60 FPS sin cerrar la ventana y con validación anti-duplicados.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="tab-panel" id="tab-poweruser">
+            <div class="feature-grid">
+              <div class="feature-item">
+                <h4>⚡ Command Palette Global (Ctrl+K)</h4>
+                <p>Buscador universal estilo Spotlight para saltar a cualquier juego, pestaña o herramienta de inmediato usando solo el teclado.</p>
+              </div>
+              <div class="feature-item">
+                <h4>⚔️ Comparador Cara a Cara (Versus)</h4>
+                <p>Enfrentá dos juegos lado a lado: precio USD/ARS, descuento, mínimo histórico, Metacritic, peso en disco y compatibilidad ProtonDB.</p>
+              </div>
+              <div class="feature-item">
+                <h4>🖼️ Visor HD (F11) &amp; Ficha Técnica</h4>
+                <p>Capturas en pantalla completa con pre-carga en RAM, comparador LATAM-USD vs EE.UU., notas personales privadas y enlaces a HowLongToBeat.</p>
+              </div>
+              <div class="feature-item">
+                <h4>📢 Webhook Discord &amp; Compartir</h4>
+                <p>Publicá fichas estilizadas directo en tu servidor de Discord o copiá un resumen limpio para WhatsApp y Telegram en 1 clic.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Interactive Skins Showcase -->
+    <section id="skins" class="section">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-eyebrow">TEMAS DINÁMICOS</span>
+          <h2>8 Skins nativas + Temas Custom</h2>
+          <p>Hacé clic en cualquier skin para probar su paleta real de <code>core/config.py</code> en toda esta página.</p>
+        </div>
+
+        <div class="skins-grid" id="skins-grid">
+          <!-- Populated & interactive via app.js -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Changelog -->
+    <section id="changelog" class="section section-alt">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-eyebrow">HISTORIAL DE VERSIONES</span>
+          <h2>Evolución constante</h2>
+          <p>Auto-actualizador integrado desde GitHub Releases con verificación de integridad.</p>
+        </div>
+
+        <div class="changelog-list">
+          <details class="changelog-item" open>
+            <summary>
+              <span class="cl-ver">v2.0.1</span>
+              <span class="cl-title">Corrección en Ficha Técnica &amp; Sincronización Watchlist</span>
+              <span class="cl-date">Noviembre 2026</span>
+            </summary>
+            <ul>
+              <li>🩹 Solucionado el fallo que impedía guardar o editar notas personales privadas en la Ficha Técnica.</li>
+              <li>📐 Barra inferior blindada para asegurar que el botón 'Compartir' no se corte y 'Cerrar' quede visible.</li>
+              <li>🌐 Descuento dinámico en botón Web con detección en vivo de ofertas.</li>
+              <li>🔄 Refresco automático e inmediato de la Watchlist al actualizar apuntes de juegos.</li>
+            </ul>
+          </details>
+
+          <details class="changelog-item">
+            <summary>
+              <span class="cl-ver">v2.0.0</span>
+              <span class="cl-title">La Gran Actualización 2.0 (4 Nuevos Pilares)</span>
+              <span class="cl-date">Noviembre 2026</span>
+            </summary>
+            <ul>
+              <li>🌐 Radar Multi-Tienda (Epic Games &amp; GOG) con monitor de juegos gratis semanales.</li>
+              <li>🃏 Gestor de Cromos &amp; Billetera Steam (-15% fee de mercado).</li>
+              <li>🎮 Modo Consola &amp; Steam Deck (XInput Gamepad) en interfaz adaptativa 10ft.</li>
+              <li>🔔 Notificaciones enriquecidas de Windows 11, Ruleta Spin-In-Place, Visor HD F11 y Command Palette (Ctrl+K).</li>
+              <li>📊 Exportador CSV / Excel y auto-actualizador resiliente desde GitHub.</li>
+            </ul>
+          </details>
+
+          <details class="changelog-item">
+            <summary>
+              <span class="cl-ver">v1.9.0</span>
+              <span class="cl-title">Cazador ATL, Subgéneros &amp; Budget Tracker</span>
+              <span class="cl-date">Noviembre 2026</span>
+            </summary>
+            <ul>
+              <li>🏷️ Explorador jerárquico de Categorías &amp; Subgéneros de Steam en 2 niveles.</li>
+              <li>⭐ Cazador de Mínimos Históricos (ATL Watchdog) y Centinela en bandeja del sistema.</li>
+              <li>🎯 Medidor de Presupuesto en el Changuito y atajos Power-User (Ctrl+F, Ctrl+D, Ctrl+H, Ctrl+B).</li>
+              <li>🟢 Badge Steam Deck Ready y motor de búsqueda ultra-rápido (&lt;0.5s).</li>
+            </ul>
+          </details>
+
+          <details class="changelog-item">
+            <summary>
+              <span class="cl-ver">v1.8.0</span>
+              <span class="cl-title">Caché SQLite 0ms, Dashboard &amp; Comparador Versus</span>
+              <span class="cl-date">Octubre 2026</span>
+            </summary>
+            <ul>
+              <li>🎨 Modales 100% Skin-Aware (cero popups nativos grises de Windows).</li>
+              <li>⚡ Biblioteca instantánea con SQLite y paginación + Valuador de Cuenta.</li>
+              <li>📊 Dashboard visual con 4 gráficos en vivo y Comparador Cara a Cara (Versus).</li>
+            </ul>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- Download & Community CTA -->
+    <section id="descarga" class="section">
+      <div class="container">
+        <div class="download-box">
+          <div class="download-info">
+            <span class="section-eyebrow">INSTALADOR OFICIAL WINDOWS</span>
+            <h2>Listo en 30 segundos</h2>
+            <p>Descargá el instalador firmado para Windows 10/11 (x64). Incluye actualización automática de versiones previas sin duplicar entradas.</p>
+            <div class="download-actions">
+              <a href="https://github.com/Patoma89/SteamScope/releases/download/v2.0.1/SteamScope_v2.0.1_Setup.exe" class="btn btn-primary btn-lg">
+                ⬇ SteamScope_v2.0.1_Setup.exe
+              </a>
+              <a href="https://github.com/Patoma89/SteamScope/releases" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-lg">
+                📦 Todas las Releases
+              </a>
+            </div>
+          </div>
+
+          <div class="community-card">
+            <h3>👾 Patoma89 Studio</h3>
+            <p>Sumate a la comunidad, sugerí features o mirá los streams:</p>
+            <div class="community-links">
+              <a href="https://www.youtube.com/@Patoma89" target="_blank" rel="noopener noreferrer" class="social-btn yt">▶ YouTube</a>
+              <a href="https://www.twitch.tv/patoma89" target="_blank" rel="noopener noreferrer" class="social-btn tw">🟪 Twitch</a>
+              <a href="https://discord.gg/MJzMg2rT37" target="_blank" rel="noopener noreferrer" class="social-btn dc">💬 Discord</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section id="faq" class="section section-alt">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-eyebrow">PREGUNTAS FRECUENTES</span>
+          <h2>Dudas rápidas</h2>
+        </div>
+
+        <div class="faq-grid">
+          <article class="faq-card">
+            <h4>¿Necesito una Steam API Key para usarlo?</h4>
+            <p>No para buscar ofertas, usar el Radar Epic/GOG, el Changuito o la Watchlist. Solo la necesitás si querés importar tu biblioteca completa y usar el Valuador de Cuenta o Radar Co-op.</p>
+          </article>
+          <article class="faq-card">
+            <h4>¿Cómo calcula el Dólar Tarjeta vs. Cripto?</h4>
+            <p>Consulta la cotización en vivo mediante DolarAPI (con respaldo automático en CriptoYa) y aplica la carga impositiva vigente o el descuento estimado pagando vía web/cripto.</p>
+          </article>
+          <article class="faq-card">
+            <h4>¿Mis datos o credenciales salen de mi PC?</h4>
+            <p>Nunca. Toda tu configuración, Watchlist, notas privadas y caché de biblioteca se guardan localmente en tu carpeta <code>AppData\Local\SteamScope</code> usando SQLite.</p>
+          </article>
+          <article class="faq-card">
+            <h4>¿Cómo puedo crear mi propia skin?</h4>
+            <p>Podés crear un archivo <code>custom_themes.json</code> dentro de tu carpeta de datos de SteamScope siguiendo la estructura de paletas y la app lo carga automáticamente al iniciar.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <img src="assets/favicon.ico" alt="" class="brand-icon" />
+        <span><strong>SteamScope v2.0.1</strong> — Desarrollado por Patoma89</span>
+      </div>
+      <div class="footer-links">
+        <a href="https://github.com/Patoma89/SteamScope" target="_blank" rel="noopener noreferrer">GitHub</a>
+        <a href="https://github.com/Patoma89/SteamScope/releases" target="_blank" rel="noopener noreferrer">Releases</a>
+        <a href="https://www.youtube.com/@Patoma89" target="_blank" rel="noopener noreferrer">YouTube</a>
+        <a href="https://discord.gg/MJzMg2rT37" target="_blank" rel="noopener noreferrer">Discord</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
