@@ -168,6 +168,17 @@ class TestDatabaseAndConfig(unittest.TestCase):
         self.assertAlmostEqual(metricas["dinero_sin_estrenar_usd"], 19.99)
         self.assertAlmostEqual(metricas["pct_sin_jugar"], 33.3, places=1)
 
+    def test_app_covers_cache_crud_and_batch(self):
+        self.assertIsNone(self.db.get_cover_url("3932890"))
+        url_tarkov = "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3932890/hash/header.jpg"
+        url_req = "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3764200/hash/header.jpg"
+        self.db.save_cover_url("3932890", url_tarkov)
+        self.db.save_cover_url("3764200", url_req)
+
+        self.assertEqual(self.db.get_cover_url("3932890"), url_tarkov)
+        batch = self.db.get_cover_urls_batch(["3932890", "3764200", "999999"])
+        self.assertEqual(batch, {"3932890": url_tarkov, "3764200": url_req})
+
 
 if __name__ == "__main__":
     unittest.main()

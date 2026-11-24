@@ -80,6 +80,10 @@ class DatabaseManager:
                 "CREATE TABLE IF NOT EXISTS game_notes ("
                 "appid TEXT PRIMARY KEY, note TEXT, updated_at TEXT)"
             )
+            cursor.execute(
+                "CREATE TABLE IF NOT EXISTS app_covers ("
+                "appid TEXT PRIMARY KEY, cover_url TEXT, updated_at TEXT)"
+            )
             # Índices para eliminar Full Table Scans en historial de precios y alertas
             cursor.execute(
                 "CREATE INDEX IF NOT EXISTS idx_price_log_appid_date ON price_log(appid, date_recorded)"
@@ -660,3 +664,58 @@ class DatabaseManager:
                 "total": 0, "sin_jugar": 0, "apenas_probados": 0, "viciados": 0,
                 "horas_totales": 0.0, "dinero_sin_estrenar_usd": 0.0, "pct_sin_jugar": 0.0
             }
+
+    def get_cover_url(self, appid):
+        """Devuelve la URL de portada cacheada para un AppID o None."""
+        aid = str(appid or "").strip()
+        if not aid:
+            return None
+        try:
+            with self.session() as conn:
+                row = conn.execute(
+                    "SELECT cover_url FROM app_covers WHERE appid = ?", (aid,)
+                ).fetchone()
+                if row and row[0]:
+                    return str(row[0])
+        except Exception:
+            pass
+        return None
+
+    def get_cover_urls_batch(self, appids):
+        """Devuelve un diccionario {appid: cover_url} para los AppIDs solicitados."""
+        ids = [str(a).strip() for a in (appids or []) if str(a).strip()]
+        if not ids:
+            return {}
+        out = {}
+        try:
+            with self.session() as conn:
+                for i in range(0, len(ids), 400):
+                    chunk = ids[i:i + 400]
+                    placeholders = ",".join("?" for _ in chunk)
+                    rows = conn.execute(
+                        f"SELECT appid, cover_url FROM app_covers WHERE appid IN ({placeholders})",
+                        chunk,
+                    ).fetchall()
+                    for aid, url in rows:
+                        if url:
+                            out[str(aid)] = str(url)
+        except Exception:
+            pass
+        return out
+
+    def save_cover_url(self, appid, cover_url):
+        """Persiste la URL oficial de portada para evitar reconsultas."""
+        aid = str(appid or "").strip()
+        url = str(cover_url or "").strip()
+        if not aid or not url:
+            return
+        ahora = datetime.now().strftime("%Y-%m-%d %H:%M")
+        try:
+            with self.session() as conn:
+                conn.execute(
+                    "INSERT INTO app_covers (appid, cover_url, updated_at) VALUES (?, ?, ?) "
+                    "ON CONFLICT(appid) DO UPDATE SET cover_url = excluded.cover_url, updated_at = excluded.updated_at",
+                    (aid, url, ahora),
+                )
+        except Exception:
+            pass

@@ -6,9 +6,7 @@ echo   EMPAQUETANDO STEAMSCOPE 3.0 NEXT EN EJECUTABLE (.EXE)
 echo ========================================================
 echo.
 
-if exist "C:\Users\INFORMES1\AppData\Local\Python\pythoncore-3.14-64\python.exe" (
-    set "PY_CMD=C:\Users\INFORMES1\AppData\Local\Python\pythoncore-3.14-64\python.exe"
-) else if exist "%LOCALAPPDATA%\Python\pythoncore-3.14-64\python.exe" (
+if exist "%LOCALAPPDATA%\Python\pythoncore-3.14-64\python.exe" (
     set "PY_CMD=%LOCALAPPDATA%\Python\pythoncore-3.14-64\python.exe"
 ) else (
     where py >nul 2>nul

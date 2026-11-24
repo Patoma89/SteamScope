@@ -47,8 +47,8 @@ class WatchlistWatchdog:
 
             umbral = int(self.config.datos.get("umbral_alerta_pct", 50) or 50)
             dolar = float(self.config.datos.get("dolar_referencia", 1000.0) or 1000.0)
-            imp_raw = self.config.datos.get("impuestos_pct", 60)
-            imp = float(imp_raw if imp_raw is not None else 60)
+            imp_raw = self.config.datos.get("impuestos_pct", 51)
+            imp = float(imp_raw if imp_raw is not None else 51)
 
             atl_hits: List[Dict[str, Any]] = []
             target_hits: List[Dict[str, Any]] = []

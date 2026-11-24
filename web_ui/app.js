@@ -84,9 +84,56 @@ function setRing(ringId, pctId, pct, customCenterText = null) {
   if (pctEl) pctEl.textContent = customCenterText !== null ? customCenterText : `${Math.round(clamped)}%`;
 }
 
+function makeSvgPlaceholder(title) {
+  const safeTitle = String(title || "Steam").slice(0, 34)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="150" viewBox="0 0 320 150"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#111827"/><stop offset="100%" stop-color="#1e293b"/></linearGradient></defs><rect width="320" height="150" fill="url(#g)"/><text x="50%" y="46%" dominant-baseline="middle" text-anchor="middle" font-size="28">🎮</text><text x="50%" y="73%" dominant-baseline="middle" text-anchor="middle" fill="#cbd5e1" font-family="Segoe UI,sans-serif" font-size="13" font-weight="700">${safeTitle}</text></svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+function steamCoverUrl(appid, cachedUrl = "") {
+  if (cachedUrl && String(cachedUrl).trim()) return String(cachedUrl).trim();
+  return `https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${encodeURIComponent(String(appid || ""))}/header.jpg`;
+}
+
+async function handleSteamImgError(imgEl, appid, title = "") {
+  if (!imgEl) return;
+  const rawId = String(appid || "").trim();
+  const aid = encodeURIComponent(rawId);
+  const step = Number(imgEl.dataset.fbStep || 0);
+
+  if (step === 0) {
+    imgEl.dataset.fbStep = "1";
+    imgEl.src = `https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${aid}/capsule_231x87.jpg`;
+    return;
+  }
+  if (step === 1) {
+    imgEl.dataset.fbStep = "2";
+    imgEl.src = `https://cdn.akamai.steamstatic.com/steam/apps/${aid}/header.jpg`;
+    return;
+  }
+  if (step === 2) {
+    imgEl.dataset.fbStep = "3";
+    try {
+      const res = await window.pywebview?.api?.resolve_steam_cover?.(rawId);
+      if (res?.ok && res.url && imgEl.isConnected) {
+        imgEl.src = res.url;
+        return;
+      }
+    } catch (_) {
+      // fallback a placeholder
+    }
+  }
+  imgEl.onerror = null;
+  imgEl.src = makeSvgPlaceholder(title || `App ${rawId}`);
+}
+
 function formatPrice(usdVal) {
   const usd = Number(usdVal) || 0;
-  const fx = state.cc?.fx || { dolar_referencia: 1000, dolar_cripto_ref: 1150, impuestos_pct: 60 };
+  const fx = state.cc?.fx || { dolar_referencia: 1000, dolar_cripto_ref: 1150, impuestos_pct: 51 };
   if (state.moneda === "ARS (Cripto)") {
     return `$${Math.round(usd * fx.dolar_cripto_ref).toLocaleString("es-AR")} ARS`;
   }
@@ -108,14 +155,23 @@ function renderCommandCenter(cc) {
 
   const dolarBase = Number(fx.dolar_referencia || 1000);
   const dolarCripto = Number(fx.dolar_cripto_ref || Math.round(dolarBase * 1.15));
-  const impPct = Number(fx.impuestos_pct ?? 60);
+  const dolarMep = Number(fx.dolar_mep_ref || dolarCripto);
+  const impPct = Number(fx.impuestos_pct ?? 51);
   const dolarTarjeta = Math.round(dolarBase * (1 + impPct / 100));
 
   document.getElementById("hud-dolar-lbl").textContent = `$${Math.round(dolarBase).toLocaleString("es-AR")}`;
   document.getElementById("hud-cripto-lbl").textContent = `🪙 $${Math.round(dolarCripto).toLocaleString("es-AR")}`;
+  const fxPill = document.getElementById("hud-fx-pill");
+  if (fxPill) {
+    const srcTxt = fx.fx_source || "Manual";
+    const updTxt = fx.fx_updated_at ? ` · ${fx.fx_updated_at}` : "";
+    fxPill.title = `${srcTxt}${updTxt} — Clic para actualizar dólar en vivo`;
+  }
   document.getElementById("cc-fx-imp").textContent = `Imp: +${impPct}%`;
   document.getElementById("cc-fx-tarjeta").textContent = `$${dolarTarjeta.toLocaleString("es-AR")} ARS`;
   document.getElementById("cc-fx-cripto").textContent = `$${Math.round(dolarCripto).toLocaleString("es-AR")} ARS`;
+  const mepEl = document.getElementById("cc-fx-mep");
+  if (mepEl) mepEl.textContent = `$${Math.round(dolarMep).toLocaleString("es-AR")} ARS`;
 
   // KPI 1: Récords ATL
   const atlCnt = cc.atl?.count || 0;
@@ -182,7 +238,7 @@ function renderCommandCenter(cc) {
   const atlEl = document.getElementById("cc-atl-list");
   const atlItems = cc.atl?.recent || [];
   if (!atlItems.length) {
-    atlEl.innerHTML = `<div class="empty-state">Todavía no hay récords ATL registrados en el historial local.</div>`;
+    atlEl.innerHTML = `<div class="empty-state">Todavía no hay mínimos históricos (ATL) registrados en el historial local.</div>`;
   } else {
     atlEl.innerHTML = atlItems.map(a => `
       <div class="cc-row">
@@ -194,6 +250,67 @@ function renderCommandCenter(cc) {
         <span class="cc-price-tag">${escapeHtml(formatPrice(a.precio_usd))}</span>
       </div>
     `).join("");
+  }
+
+  // Top 5 Más Jugados de la Biblioteca
+  const topEl = document.getElementById("cc-top-games-list");
+  if (topEl) {
+    const topGames = (cc.backlog?.top_games || []).slice(0, 5);
+    if (!topGames.length) {
+      topEl.innerHTML = `
+        <div class="empty-state" style="display:flex;flex-direction:column;gap:8px;align-items:flex-start">
+          <span>Sincronizá tu biblioteca de Steam para ver tus juegos más jugados y métricas de backlog.</span>
+          <button type="button" class="btn-ghost" id="btn-cc-sync-lib">📚 Ir a Mi Biblioteca →</button>
+        </div>
+      `;
+      document.getElementById("btn-cc-sync-lib")?.addEventListener("click", () => navigateTo("library"));
+    } else {
+      topEl.innerHTML = topGames.map(g => `
+        <div class="cc-row cc-top-game-row" data-appid="${escapeHtml(g.appid)}" style="cursor:pointer">
+          <img class="cc-top-thumb" src="${escapeHtml(steamCoverUrl(g.appid, g.cover_url))}" alt="${escapeHtml(g.titulo)}" loading="lazy" onerror="window.SteamScopeUI.handleSteamImgError(this, '${escapeHtml(g.appid)}', this.alt)" />
+          <div class="cc-row-main">
+            <div class="cc-row-title">${escapeHtml(g.titulo)}</div>
+            <div class="cc-row-sub">AppID ${escapeHtml(g.appid)}</div>
+          </div>
+          <span class="cc-price-tag">${Number(g.horas || 0).toFixed(1)} hs</span>
+        </div>
+      `).join("");
+      topEl.querySelectorAll(".cc-top-game-row").forEach(row => {
+        row.addEventListener("click", () => {
+          if (window.FichaView) window.FichaView.openFicha(row.dataset.appid);
+        });
+      });
+    }
+  }
+
+  // Próximo Evento Steam
+  const evEl = document.getElementById("cc-next-event-box");
+  if (evEl) {
+    const ev = cc.next_event;
+    if (!ev) {
+      evEl.innerHTML = `
+        <div class="empty-state" style="display:flex;flex-direction:column;gap:8px;align-items:flex-start">
+          <span>Consultá el calendario de rebajas oficiales y la calculadora USD → ARS.</span>
+          <button type="button" class="btn-ghost" id="btn-cc-open-events">📅 Ver Eventos &amp; Calc →</button>
+        </div>
+      `;
+    } else {
+      const badge = ev.status === "active"
+        ? `<span class="d-badge free">🔥 ACTIVO AHORA (${ev.days_left}d restantes)</span>`
+        : `<span class="d-badge atl">⏳ Faltan ${ev.days_left} días</span>`;
+      evEl.innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+            ${badge}
+            <span class="panel-hint">${escapeHtml(ev.type || "Major")}</span>
+          </div>
+          <strong style="font-size:15px;color:var(--text)">${escapeHtml(ev.name)}</strong>
+          <div style="font-size:12px;color:var(--subtext)">📅 Del ${escapeHtml(ev.start_display)} al ${escapeHtml(ev.end_display)}</div>
+          <button type="button" class="btn-ghost" id="btn-cc-open-events" style="align-self:flex-start;margin-top:4px">🧮 Abrir Calculadora y Calendario →</button>
+        </div>
+      `;
+    }
+    document.getElementById("btn-cc-open-events")?.addEventListener("click", () => navigateTo("events"));
   }
 }
 
@@ -449,7 +566,7 @@ async function openUpdateModal() {
 
   if (res.has_update) {
     body.innerHTML = `
-      <div>🚀 <strong>¡Nueva versión disponible!</strong> (${escapeHtml(res.current_version)} → <strong>v${escapeHtml(res.latest_version)}</strong>)</div>
+      <div>🚀 <strong>¡Nueva versión disponible!</strong> (v${escapeHtml(res.current_version)} → <strong>v${escapeHtml(res.latest_version)}</strong>)</div>
       <ul style="padding-left:18px;font-size:12px;color:var(--subtext)">
         ${(res.notas || []).map(n => `<li>${escapeHtml(n)}</li>`).join("")}
       </ul>
@@ -462,6 +579,50 @@ async function openUpdateModal() {
     body.innerHTML = `
       <div>✅ Estás usando la última versión disponible (<strong>v${escapeHtml(res.current_version)}</strong>).</div>
     `;
+  }
+}
+
+let fxRefreshPending = false;
+async function refreshFxLive(force = true) {
+  if (fxRefreshPending || !window.pywebview?.api?.refresh_live_fx) return;
+  fxRefreshPending = true;
+  const pill = document.getElementById("hud-fx-pill");
+  if (force) pill?.classList.add("loading");
+  try {
+    const res = await window.pywebview.api.refresh_live_fx(Boolean(force));
+    if (!res?.ok) {
+      if (force) showToast(`⚠️ ${res?.error || "No se pudo consultar la cotización en vivo."}`);
+      return;
+    }
+    renderCommandCenter(res.command_center);
+    if (!res.cached) {
+      if (state.activeTab === "deals" && window.DealsView) {
+        window.DealsView.refreshPrices();
+      }
+      if (["watchlist", "atl", "library", "cards"].includes(state.activeTab) && window.AccountView) {
+        window.AccountView.refreshActive(state.activeTab);
+      }
+      if (document.getElementById("modal-cart")?.classList.contains("open")) {
+        const cartRes = await window.pywebview.api.get_cart();
+        renderCartModal(cartRes);
+      }
+      if (state.activeTab === "settings") {
+        const setDolar = document.getElementById("set-dolar");
+        const setCripto = document.getElementById("set-cripto");
+        const setHint = document.getElementById("set-fx-status");
+        if (setDolar) setDolar.value = res.dolar_referencia;
+        if (setCripto) setCripto.value = res.dolar_cripto_ref;
+        if (setHint) {
+          setHint.textContent = `Fuente: ${res.fx_source || "En vivo"}${res.fx_updated_at ? ` · Actualizado: ${res.fx_updated_at}` : ""}`;
+        }
+      }
+    }
+    if (force) {
+      showToast(`💵 Dólar actualizado (${res.fx_source || "En vivo"}): Oficial $${res.dolar_referencia} / Cripto $${res.dolar_cripto_ref}`);
+    }
+  } finally {
+    fxRefreshPending = false;
+    pill?.classList.remove("loading");
   }
 }
 
@@ -511,6 +672,15 @@ function wireEvents() {
 
   document.getElementById("hud-cart-chip")?.addEventListener("click", openCartModal);
   document.getElementById("btn-close-cart")?.addEventListener("click", () => closeModal("modal-cart"));
+
+  const fxPill = document.getElementById("hud-fx-pill");
+  fxPill?.addEventListener("click", () => refreshFxLive(true));
+  fxPill?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      refreshFxLive(true);
+    }
+  });
 
   document.getElementById("btn-topmost")?.addEventListener("click", async () => {
     const res = await window.pywebview.api.toggle_always_on_top();
@@ -585,6 +755,8 @@ function wireEvents() {
 window.SteamScopeUI = {
   formatPrice,
   escapeHtml,
+  steamCoverUrl,
+  handleSteamImgError,
   showToast,
   renderCommandCenter,
   refreshCommandCenter: () => window.pywebview?.api?.get_command_center_data().then(renderCommandCenter),
@@ -645,6 +817,7 @@ async function initApp() {
 
   applySkinPalette(boot.skin_id, boot.skins?.[boot.skin_id]);
   renderCommandCenter(boot.command_center);
+  refreshFxLive(false);
 }
 
 document.addEventListener("DOMContentLoaded", () => {

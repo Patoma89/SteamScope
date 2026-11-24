@@ -48,6 +48,8 @@ class WebAPIFichaMixin:
             or ref.get("header_url")
             or f"https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/{aid}/header.jpg"
         )
+        if isinstance(d, dict) and d.get("header_image"):
+            self.db.save_cover_url(aid, str(d["header_image"]))
         poster_url = f"https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/{aid}/library_600x900.jpg"
 
         is_free = bool(d.get("is_free", False))

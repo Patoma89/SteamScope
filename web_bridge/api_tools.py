@@ -6,15 +6,16 @@ Python puro consumiendo exclusivamente core/ (sin Tkinter/CustomTkinter/pywebvie
 """
 import os
 import random
+import time
 import zipfile
 from collections import Counter
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from core.api_client import HTTP_SESSION, consultar_dolar_api
+from core.api_client import HTTP_SESSION, obtener_cotizaciones_dolar
 from core.config import STEAM_CALENDAR, limpiar_cache_imagenes
 from core.csv_utils import escribir_csv
-from core.multi_store import obtener_promociones_epic
+from core.multi_store import obtener_promociones_epic, obtener_promociones_gog
 
 
 class WebAPIToolsMixin:
@@ -22,16 +23,21 @@ class WebAPIToolsMixin:
 
     # ================= RADAR EPIC & GOG =================
     def get_free_games_radar(self, force_refresh: bool = False) -> Dict[str, Any]:
-        """Consulta juegos gratuitos activos y próximos de Epic Games Store + accesos GOG."""
+        """Consulta juegos gratuitos activos y próximos de Epic Games Store + catálogo GOG."""
         items = obtener_promociones_epic(forzar_refresco=bool(force_refresh)) or []
         activos = [it for it in items if it.get("es_activo")]
         proximos = [it for it in items if it.get("es_proximo")]
+        gog_data = obtener_promociones_gog(forzar_refresco=bool(force_refresh)) or {}
+        gog_gratis = list(gog_data.get("gratis") or [])
+        gog_ofertas = list(gog_data.get("ofertas") or [])
         self.sfx.play("click")
         return {
             "ok": True,
             "activos": activos,
             "proximos": proximos,
-            "total": len(items),
+            "gog_gratis": gog_gratis,
+            "gog_ofertas": gog_ofertas,
+            "total": len(items) + len(gog_gratis) + len(gog_ofertas),
             "gog_links": [
                 {"label": "🎁 Juegos Gratis en GOG (DRM-Free)", "url": "https://www.gog.com/en/games?priceRange=0,0&discounted=true"},
                 {"label": "🔥 Ofertas Destacadas GOG", "url": "https://www.gog.com/en/games?discounted=true"},
@@ -39,10 +45,14 @@ class WebAPIToolsMixin:
         }
 
     # ================= RULETA LOOT BOX 60 FPS =================
-    def spin_roulette(self, mode: str = "deals", exclude_appid: str = "") -> Dict[str, Any]:
-        """Sortea un juego de ofertas o del backlog evitando repetir el actual."""
+    def spin_roulette(self, mode: str = "deals", exclude_appid: str = "", count: int = 1) -> Dict[str, Any]:
+        """Sortea 1, 3 o 5 juegos de ofertas o del backlog evitando repetir el actual."""
         ex_id = str(exclude_appid or "")
         modo = "backlog" if mode == "backlog" else "deals"
+        try:
+            n = max(1, min(5, int(count or 1)))
+        except (TypeError, ValueError):
+            n = 1
 
         if modo == "backlog":
             lib = self.db.get_library_cached() or []
@@ -50,16 +60,36 @@ class WebAPIToolsMixin:
                 return {"ok": False, "error": "Tu biblioteca cacheada está vacía."}
             cands = [g for g in lib if str(g.get("appid")) != ex_id] or lib
             unplayed = [g for g in cands if float(g.get("horas", 0.0) or 0.0) < 0.5]
-            pool = unplayed if unplayed else cands
-            chosen = random.choice(pool)
+            if len(unplayed) >= n:
+                pool = unplayed
+            elif unplayed:
+                unplayed_ids = {str(g.get("appid")) for g in unplayed}
+                pool = unplayed + [g for g in cands if str(g.get("appid")) not in unplayed_ids]
+            else:
+                pool = cands
+
+            picked = random.sample(pool, min(n, len(pool)))
+            covers = self.db.get_cover_urls_batch([g.get("appid") for g in picked]) or {}
+            items = []
+            for g in picked:
+                aid = str(g.get("appid", ""))
+                row = dict(g)
+                cached_cover = covers.get(aid, "")
+                row["cover_url"] = cached_cover
+                row["header_url"] = cached_cover or f"https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/{aid}/header.jpg"
+                row["thumb_url"] = f"https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/{aid}/capsule_231x87.jpg"
+                row["link"] = f"https://store.steampowered.com/app/{aid}"
+                items.append(row)
+
             pool_titles = [str(g.get("titulo", "")) for g in random.sample(pool, min(12, len(pool)))]
-            if chosen.get("titulo") not in pool_titles:
-                pool_titles.append(str(chosen.get("titulo")))
+            if items[0].get("titulo") not in pool_titles:
+                pool_titles.append(str(items[0].get("titulo")))
             self.sfx.play("roulette_win")
             return {
                 "ok": True,
                 "mode": "backlog",
-                "item": chosen,
+                "item": items[0],
+                "items": items,
                 "pool_titles": pool_titles,
             }
 
@@ -71,7 +101,7 @@ class WebAPIToolsMixin:
             if str(d.get("appid")) != ex_id and str(d.get("appid")) not in cart_ids
         ]
 
-        if len(pool_deals) < 5:
+        if len(pool_deals) < max(5, n):
             try:
                 resp = HTTP_SESSION.get(
                     "https://www.cheapshark.com/api/1.0/deals",
@@ -121,17 +151,18 @@ class WebAPIToolsMixin:
         if not cands:
             return {"ok": False, "error": "No hay ofertas disponibles para sortear."}
 
-        chosen = random.choice(cands)
+        picked = random.sample(cands, min(n, len(cands)))
         sample = random.sample(cands, min(12, len(cands)))
         pool_titles = [str(d.get("titulo", "")) for d in sample]
-        if chosen.get("titulo") not in pool_titles:
-            pool_titles.append(str(chosen.get("titulo")))
+        if picked[0].get("titulo") not in pool_titles:
+            pool_titles.append(str(picked[0].get("titulo")))
         self.sfx.play("roulette_win")
 
         return {
             "ok": True,
             "mode": "deals",
-            "item": chosen,
+            "item": picked[0],
+            "items": picked,
             "pool_titles": pool_titles,
         }
 
@@ -198,6 +229,17 @@ class WebAPIToolsMixin:
             if float(g.get("horas", 0.0) or 0.0) > 0
         ]
 
+        total_val = 0.0
+        for g in lib_rows:
+            pr = float(g.get("price_usd", -1.0) if g.get("price_usd") is not None else -1.0)
+            if pr >= 0:
+                total_val += pr
+        horas_totales = float(m.get("horas_totales", 0.0) or 0.0)
+        unplayed_val = float(m.get("dinero_sin_estrenar_usd", 0.0) or 0.0)
+        cost_per_hour = round(total_val / horas_totales, 2) if horas_totales > 0 and total_val > 0 else 0.0
+        discounts = [int(d.get("descuento", 0) or 0) for d in deals if int(d.get("descuento", 0) or 0) > 0]
+        avg_discount = round(sum(discounts) / len(discounts), 1) if discounts else 0.0
+
         return {
             "ok": True,
             "deals_total": len(deals),
@@ -206,6 +248,13 @@ class WebAPIToolsMixin:
             "top_genres": top_genres,
             "backlog_breakdown": backlog_breakdown,
             "top_played": top_played,
+            "summary": {
+                "total_value_usd": round(total_val, 2),
+                "unplayed_value_usd": round(unplayed_val, 2),
+                "cost_per_hour_usd": cost_per_hour,
+                "avg_discount_pct": avg_discount,
+                "horas_totales": round(horas_totales, 1),
+            },
         }
 
     # ================= EVENTOS STEAM & FX EN VIVO =================
@@ -237,23 +286,41 @@ class WebAPIToolsMixin:
 
         return {"ok": True, "events": events, "fx": self._get_fx_values()}
 
-    def refresh_live_fx(self) -> Dict[str, Any]:
-        """Actualiza dólar oficial y cripto desde DolarAPI/CriptoYa y los guarda en config."""
-        oficial = consultar_dolar_api("oficial")
-        cripto = consultar_dolar_api("cripto")
+    def refresh_live_fx(self, force: bool = True, max_age_seconds: int = 1800) -> Dict[str, Any]:
+        """Actualiza dólar oficial, cripto y MEP con caché TTL para evitar esperas redundantes."""
+        if not force:
+            fx_updated_ts = float(self.config.datos.get("fx_updated_ts", 0.0) or 0.0)
+            if fx_updated_ts > 0 and (time.time() - fx_updated_ts) < max_age_seconds:
+                fx = self._get_fx_values()
+                return {
+                    "ok": True,
+                    "cached": True,
+                    **fx,
+                    "command_center": self.get_command_center_data(),
+                }
 
-        if oficial and oficial > 0:
-            self.config.guardar_basico("dolar_referencia", round(float(oficial), 2))
-        if cripto and cripto > 0:
-            self.config.guardar_basico("dolar_cripto_ref", round(float(cripto), 2))
-
-        if not oficial and not cripto:
+        res = obtener_cotizaciones_dolar() or {}
+        if not res.get("ok"):
             return {"ok": False, "error": "No se pudo consultar la cotización en vivo."}
 
-        self.sfx.play("coin")
+        if res.get("oficial"):
+            self.config.guardar_basico("dolar_referencia", round(float(res["oficial"]), 2))
+        if res.get("cripto"):
+            self.config.guardar_basico("dolar_cripto_ref", round(float(res["cripto"]), 2))
+        if res.get("mep"):
+            self.config.guardar_basico("dolar_mep_ref", round(float(res["mep"]), 2))
+
+        self.config.guardar_basico("fx_updated_at", str(res.get("updated_at") or datetime.now().strftime("%Y-%m-%d %H:%M")))
+        self.config.guardar_basico("fx_updated_ts", time.time())
+        if res.get("source"):
+            self.config.guardar_basico("fx_source", str(res["source"]))
+
+        if force:
+            self.sfx.play("coin")
         fx = self._get_fx_values()
         return {
             "ok": True,
+            "cached": False,
             **fx,
             "command_center": self.get_command_center_data(),
         }
@@ -269,7 +336,7 @@ class WebAPIToolsMixin:
                 "steam_api_key": str(d.get("steam_api_key", "") or ""),
                 "dolar_referencia": float(d.get("dolar_referencia", 1000.0) or 1000.0),
                 "dolar_cripto_ref": float(d.get("dolar_cripto_ref", 1150.0) or 1150.0),
-                "impuestos_pct": float(d.get("impuestos_pct", 60) if d.get("impuestos_pct") is not None else 60),
+                "impuestos_pct": float(d.get("impuestos_pct", 51) if d.get("impuestos_pct") is not None else 51),
                 "umbral_alerta_pct": int(d.get("umbral_alerta_pct", 50) or 50),
                 "minimizar_a": str(d.get("minimizar_a", "Preguntar") or "Preguntar"),
                 "sfx_enabled": bool(d.get("sfx_enabled", True)),
@@ -277,6 +344,8 @@ class WebAPIToolsMixin:
                 "watchdog_activado": bool(d.get("watchdog_activado", True)),
                 "watchdog_intervalo_hs": int(d.get("watchdog_intervalo_hs", 6) or 6),
                 "alerta_sonido_atl": bool(d.get("alerta_sonido_atl", True)),
+                "fx_source": str(d.get("fx_source", "Manual") or "Manual"),
+                "fx_updated_at": str(d.get("fx_updated_at", "") or ""),
             },
         }
 
@@ -286,7 +355,7 @@ class WebAPIToolsMixin:
         try:
             dolar = max(1.0, float(p.get("dolar_referencia", 1000.0)))
             cripto = max(1.0, float(p.get("dolar_cripto_ref", 1150.0)))
-            imp = max(0.0, min(300.0, float(p.get("impuestos_pct", 60))))
+            imp = max(0.0, min(300.0, float(p.get("impuestos_pct", 51))))
             umbral = max(1, min(100, int(p.get("umbral_alerta_pct", 50))))
             intervalo = max(1, min(72, int(p.get("watchdog_intervalo_hs", 6))))
         except (TypeError, ValueError):
@@ -295,6 +364,9 @@ class WebAPIToolsMixin:
         minimizar = str(p.get("minimizar_a", "Preguntar"))
         if minimizar not in ("Preguntar", "Barra", "Bandeja"):
             minimizar = "Preguntar"
+
+        prev_dolar = float(self.config.datos.get("dolar_referencia", 1000.0) or 1000.0)
+        prev_cripto = float(self.config.datos.get("dolar_cripto_ref", 1150.0) or 1150.0)
 
         self.config.guardar(
             steam_id=str(p.get("steam_id", "") or "").strip(),
@@ -310,6 +382,10 @@ class WebAPIToolsMixin:
             alerta_sonido_atl=bool(p.get("alerta_sonido_atl", True)),
         )
         self.config.guardar_basico("dolar_cripto_ref", cripto)
+        if abs(dolar - prev_dolar) > 1e-6 or abs(cripto - prev_cripto) > 1e-6:
+            self.config.guardar_basico("fx_source", "Manual")
+            self.config.guardar_basico("fx_updated_at", datetime.now().strftime("%Y-%m-%d %H:%M"))
+            self.config.guardar_basico("fx_updated_ts", time.time())
         self.sfx.play("coin")
         return {
             "ok": True,
@@ -401,6 +477,11 @@ class WebAPIToolsMixin:
                     zf.write(self.config.config_path, arcname=os.path.basename(self.config.config_path))
                     archived.append(os.path.basename(self.config.config_path))
                 if self.db.db_path and os.path.isfile(self.db.db_path):
+                    try:
+                        with self.db.session() as conn:
+                            conn.execute("PRAGMA wal_checkpoint(TRUNCATE);")
+                    except Exception:
+                        pass
                     zf.write(self.db.db_path, arcname=os.path.basename(self.db.db_path))
                     archived.append(os.path.basename(self.db.db_path))
             self.sfx.play("coin")
@@ -421,6 +502,10 @@ class WebAPIToolsMixin:
         aid = str(item.get("appid", ""))
         desc = int(item.get("descuento", 0) or 0)
 
+        rating_raw = item.get("rating", "N/A")
+        rating_str = str(rating_raw if rating_raw is not None else "N/A").strip() or "N/A"
+        rating_display = f"{rating_str}%" if rating_str.isdigit() else rating_str
+
         payload = {
             "embeds": [{
                 "title": f"🔥 {titulo} (-{desc}% OFF)",
@@ -429,7 +514,7 @@ class WebAPIToolsMixin:
                 "fields": [
                     {"name": "💵 USD", "value": f"${p_usd:.2f}", "inline": True},
                     {"name": "💳 ARS Tarjeta", "value": f"${p_ars:,.0f}", "inline": True},
-                    {"name": "⭐ Reseñas", "value": f"{item.get('rating', 'N/A')}%", "inline": True},
+                    {"name": "⭐ Reseñas", "value": rating_display, "inline": True},
                 ],
                 "footer": {"text": "SteamScope 3.0 NEXT • by Patoma89"},
             }]

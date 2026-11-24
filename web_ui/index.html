@@ -46,7 +46,7 @@
         </button>
         <button class="nav-item" data-tab="atl">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
-          <span class="nav-label">Récords ATL</span>
+          <span class="nav-label">Mínimos Históricos (ATL)</span>
           <span class="nav-badge" id="nav-atl-badge" style="display:none">0</span>
         </button>
 
@@ -120,11 +120,12 @@
 
         <div class="hud-right">
           <span class="hud-chip active" id="hud-gamepad-chip" style="display:none" title="Mando XInput conectado">🎮 Mando</span>
-          <div class="hud-fx-pill" id="hud-fx-pill" title="Cotización configurada en SteamScope">
+          <div class="hud-fx-pill" id="hud-fx-pill" role="button" tabindex="0" title="Cotización configurada en SteamScope — Clic para actualizar dólar en vivo">
             <span>💵</span>
             <span id="hud-dolar-lbl">$1.000</span>
             <span class="fx-sep">|</span>
             <span id="hud-cripto-lbl">🪙 $1.150</span>
+            <span class="fx-refresh-icon" id="hud-fx-refresh-icon">↻</span>
           </div>
 
           <select class="t-select hud-select" id="hud-currency-select" title="Moneda activa">
@@ -163,10 +164,10 @@
 
           <!-- 4 KPI CARDS CON ANILLOS SVG -->
           <div class="kpi-grid">
-            <div class="glass-card kpi-card clickable-card" data-goto="atl" title="Ver Récords ATL">
+            <div class="glass-card kpi-card clickable-card" data-goto="atl" title="ATL (All-Time Low): el precio más bajo en toda la historia del juego en Steam">
               <div class="kpi-card-title">
-                <span>Récords ATL</span>
-                <span class="kpi-sub-tag" id="kpi-atl-sub">Centinela activo</span>
+                <span>Mínimos Históricos (ATL)</span>
+                <span class="kpi-sub-tag" id="kpi-atl-sub">All-Time Low</span>
               </div>
               <div class="kpi-card-body">
                 <div class="ring-wrap">
@@ -178,8 +179,8 @@
                 </div>
                 <div class="kpi-metrics">
                   <div class="kpi-big-num" id="kpi-atl-num">0</div>
-                  <div class="kpi-meta-line" id="kpi-atl-meta">Sin alertas capturadas aún</div>
-                  <span class="kpi-pill">Historial ATL →</span>
+                  <div class="kpi-meta-line" id="kpi-atl-meta">Precio más bajo histórico</div>
+                  <span class="kpi-pill">Ver Mínimos (ATL) →</span>
                 </div>
               </div>
             </div>
@@ -262,8 +263,8 @@
             <!-- Col 2: Últimos Récords ATL -->
             <div class="glass-card panel-card">
               <div class="panel-header">
-                <span class="panel-title clickable-link" data-goto="atl">Últimos Récords ATL →</span>
-                <span class="panel-hint">SQLite Local</span>
+                <span class="panel-title clickable-link" data-goto="atl">Últimos Mínimos (ATL) →</span>
+                <span class="panel-hint" title="All-Time Low: mínimo histórico absoluto">All-Time Low</span>
               </div>
               <div class="cc-list" id="cc-atl-list"></div>
             </div>
@@ -273,19 +274,23 @@
               <div class="glass-card panel-card">
                 <div class="panel-header">
                   <span class="panel-title">Referencia Cambiaria</span>
-                  <span class="panel-hint" id="cc-fx-imp">Imp: +60%</span>
+                  <span class="panel-hint" id="cc-fx-imp">Imp: +51%</span>
                 </div>
                 <div class="fx-grid">
                   <div class="fx-box">
                     <span>💳 Dólar Tarjeta</span>
-                    <strong id="cc-fx-tarjeta">$1.600 ARS</strong>
+                    <strong id="cc-fx-tarjeta">$1.510 ARS</strong>
                   </div>
                   <div class="fx-box">
                     <span>🪙 Dólar Cripto</span>
                     <strong id="cc-fx-cripto">$1.150 ARS</strong>
                   </div>
+                  <div class="fx-box">
+                    <span>🏛️ Dólar MEP</span>
+                    <strong id="cc-fx-mep">$1.150 ARS</strong>
+                  </div>
                 </div>
-                <div class="fx-note" id="cc-fx-saving">Pagando por Steam Web / Cripto evitás percepciones extra.</div>
+                <div class="fx-note" id="cc-fx-saving">Pagando por Steam Web / Cripto / MEP evitás percepciones extra.</div>
               </div>
 
               <div class="glass-card panel-card">
@@ -299,6 +304,25 @@
                   <button class="quick-tile amber" data-goto="roulette">🎰 Ruleta</button>
                 </div>
               </div>
+            </div>
+          </div>
+
+          <!-- FILA INFERIOR BENTO: TOP JUGADOS + PRÓXIMO EVENTO -->
+          <div class="bento-bottom">
+            <div class="glass-card panel-card">
+              <div class="panel-header">
+                <span class="panel-title clickable-link" data-goto="library">🏆 Top 5 Más Jugados →</span>
+                <span class="panel-hint" id="cc-lib-hint">Tu Biblioteca Steam</span>
+              </div>
+              <div class="cc-list" id="cc-top-games-list"></div>
+            </div>
+
+            <div class="glass-card panel-card">
+              <div class="panel-header">
+                <span class="panel-title clickable-link" data-goto="events">📅 Próximo Evento Steam →</span>
+                <span class="panel-hint">Calendario Valve</span>
+              </div>
+              <div id="cc-next-event-box"></div>
             </div>
           </div>
         </section>

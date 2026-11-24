@@ -665,12 +665,15 @@ class ConfigManager:
     """Repositorio de configuración persistente en JSON (SRP)."""
     def __init__(self, config_path=None):
         self.config_path = config_path or os.path.join(obtener_ruta_appdata(), "config.json")
+        self._lock = threading.Lock()
         self.datos = self.cargar()
 
     def cargar(self):
         defaults = {
-            "steam_id": "", "steam_api_key": "", "impuestos_pct": 60, "dolar_referencia": 1000.0,
-            "dolar_cripto_ref": 1150.0, "umbral_alerta_pct": 50, "minimizar_a": "Preguntar",
+            "steam_id": "", "steam_api_key": "", "impuestos_pct": 51, "dolar_referencia": 1000.0,
+            "dolar_cripto_ref": 1150.0, "dolar_mep_ref": 1150.0,
+            "fx_updated_at": "", "fx_updated_ts": 0.0, "fx_source": "Manual",
+            "umbral_alerta_pct": 50, "minimizar_a": "Preguntar",
             "vista_resultados": "Normal", "tema": "Oscuro", "sfx_enabled": True, "moneda": "USD",
             "update_url": UPDATE_JSON_URL, "busquedas_recientes": [], "filtro_favorito": {},
             "carrito_guardado": {}, "discord_webhook": "", "metodo_pago_defecto": "Tarjeta",
@@ -706,8 +709,19 @@ class ConfigManager:
         self._persistir()
 
     def _persistir(self):
-        try:
-            with open(self.config_path, 'w', encoding='utf-8') as f:
-                json.dump(self.datos, f, indent=4)
-        except Exception:
-            pass
+        with self._lock:
+            tmp_path = f"{self.config_path}.tmp"
+            try:
+                parent_dir = os.path.dirname(self.config_path)
+                if parent_dir:
+                    os.makedirs(parent_dir, exist_ok=True)
+                snapshot = dict(self.datos)
+                with open(tmp_path, 'w', encoding='utf-8') as f:
+                    json.dump(snapshot, f, indent=4)
+                os.replace(tmp_path, self.config_path)
+            except Exception:
+                try:
+                    if os.path.exists(tmp_path):
+                        os.remove(tmp_path)
+                except Exception:
+                    pass
