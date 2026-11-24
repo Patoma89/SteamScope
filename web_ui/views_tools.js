@@ -338,7 +338,7 @@
       <div class="deals-header">
         <div>
           <h1 class="deals-title">AJUSTES <span>&amp; MANTENIMIENTO</span></h1>
-          <div style="font-size:12px;color:var(--subtext)">Configuración persistente compartida con SteamScope v2.0.1.</div>
+          <div style="font-size:12px;color:var(--subtext)">Configuración persistente en AppData y base SQLite local.</div>
         </div>
         <button type="button" class="btn-primary-accent" id="btn-set-save">💾 Guardar Configuración</button>
       </div>
@@ -401,6 +401,7 @@
         watchdog_intervalo_hs: Number(document.getElementById("set-intervalo")?.value || 6),
         sfx_enabled: Boolean(document.getElementById("set-sfx")?.checked),
         watchdog_activado: Boolean(document.getElementById("set-watchdog")?.checked),
+        alerta_sonido_atl: s.alerta_sonido_atl ?? true,
       };
       const r = await window.pywebview.api.save_settings(payload);
       if (r?.ok) {

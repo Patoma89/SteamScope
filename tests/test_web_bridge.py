@@ -1,3 +1,4 @@
+import ast
 import http.client
 import json
 import os
@@ -6,7 +7,7 @@ import unittest
 import zipfile
 from unittest.mock import MagicMock, patch
 
-from core.config import SKIN_PALETTES, ConfigManager
+from core.config import APP_VERSION, PATCH_NOTES, SKIN_PALETTES, ConfigManager
 from core.database import DatabaseManager
 from web_bridge import SteamScopeWebAPI, resolve_web_asset_path, start_local_server
 
@@ -181,6 +182,64 @@ class TestWebBridge(unittest.TestCase):
         self.assertTrue(res["has_update"])
         self.assertEqual(res["latest_version"], "99.0.0")
         self.assertEqual(res["notas"], ["Nueva UI GPU 3.0"])
+
+    def test_version_consistency_with_version_json_and_patch_notes(self):
+        root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        version_json_path = os.path.join(root_dir, "version.json")
+        with open(version_json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        self.assertEqual(APP_VERSION, "3.0.0")
+        self.assertEqual(data["version"].lstrip("vV"), APP_VERSION)
+        self.assertEqual(PATCH_NOTES[0]["version"], f"v{APP_VERSION}")
+        self.assertEqual(self.api.get_bootstrap()["version"], APP_VERSION)
+
+    @patch("web_bridge.api.HTTP_SESSION.get")
+    def test_check_updates_same_version_returns_no_update(self, mock_get):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "version": f"v{APP_VERSION}",
+            "url": "https://github.com/Patoma89/SteamScope/releases/latest",
+            "notas": [],
+        }
+        mock_get.return_value = mock_resp
+
+        res = self.api.check_updates()
+        self.assertTrue(res["ok"])
+        self.assertFalse(res["has_update"])
+        self.assertEqual(res["current_version"], APP_VERSION)
+        self.assertEqual(res["latest_version"], APP_VERSION)
+
+    def test_web_bridge_has_no_ui_or_tkinter_dependency(self):
+        root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        bridge_dir = os.path.join(root_dir, "web_bridge")
+        forbidden_roots = {"tkinter", "customtkinter", "ui", "pandas", "matplotlib"}
+        py_files = [
+            "__init__.py",
+            "api.py",
+            "api_deals.py",
+            "api_ficha.py",
+            "api_account.py",
+            "api_tools.py",
+            "asset_server.py",
+            "tray_v3.py",
+        ]
+        for fname in py_files:
+            fpath = os.path.join(bridge_dir, fname)
+            self.assertTrue(os.path.isfile(fpath), f"Falta archivo esperado: {fpath}")
+            with open(fpath, "r", encoding="utf-8") as f:
+                tree = ast.parse(f.read(), filename=fpath)
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    for alias in node.names:
+                        top = alias.name.split(".")[0]
+                        self.assertNotIn(top, forbidden_roots, f"{fname} importa {alias.name}")
+                        self.assertNotEqual(alias.name, "core.exporters", f"{fname} importa core.exporters")
+                elif isinstance(node, ast.ImportFrom) and node.module:
+                    top = node.module.split(".")[0]
+                    self.assertNotIn(top, forbidden_roots, f"{fname} importa desde {node.module}")
+                    self.assertNotEqual(node.module, "core.exporters", f"{fname} importa desde core.exporters")
 
     def test_deals_metadata_and_presets(self):
         meta = self.api.get_deals_metadata()

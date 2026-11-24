@@ -1,10 +1,10 @@
 ; =======================================================
-; Script de Instalación Profesional Completo - SteamScope v2.0.1
+; Script de Instalación Profesional Completo - SteamScope v3.0.0
 ; Desarrollado por Patoma89
 ; =======================================================
 
 #define MyAppName "SteamScope"
-#define MyAppVersion "2.0.1"
+#define MyAppVersion "3.0.0"
 #define MyAppPublisher "Patoma89"
 #define MyAppURL "https://github.com/Patoma89/SteamScope"
 #define MyAppExeName "SteamScope.exe"

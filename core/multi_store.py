@@ -1,5 +1,5 @@
 """
-Módulo de Integración Multi-Tienda para SteamScope 2.0 (SRP / Core Puro).
+Módulo de Integración Multi-Tienda para SteamScope (SRP / Core Puro).
 Gestiona la extracción y normalización de promociones y juegos gratuitos
 de tiendas externas como Epic Games Store y GOG sin dependencias de UI.
 """

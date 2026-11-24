@@ -6,7 +6,7 @@ import threading
 import winsound
 
 # ================= CONSTANTES Y CONFIGURACIÓN =================
-APP_VERSION = "2.0.1"
+APP_VERSION = "3.0.0"
 APP_NAME = "SteamScope"
 
 UPDATE_JSON_URL = "https://raw.githubusercontent.com/Patoma89/SteamScope/main/version.json"
@@ -14,6 +14,17 @@ GITHUB_API_RELEASES = "https://api.github.com/repos/Patoma89/SteamScope/releases
 FALLBACK_RELEASES_WEB = "https://github.com/Patoma89/SteamScope/releases"
 
 PATCH_NOTES = [
+    {
+        "version": "v3.0.0",
+        "fecha": "Noviembre 2026",
+        "cambios": [
+            "🚀 SteamScope 3.0 NEXT: Nueva interfaz GPU-Acelerada con Edge WebView2 (Obsidian Glassmorphism) fluida a 60 FPS.",
+            "🎛️ Centro de Mando Bento con anillos SVG en vivo, Spotlight global (Ctrl+K) y soporte completo para las 8+ Skins dinámicas.",
+            "🖼️ Ficha Técnica Pro renovada con Lightbox HD táctico (zoom con rueda, pan, flechas y F11) y Comparador Versus 1v1.",
+            "🎮 Soporte completo para Radar Epic & GOG, Watchlist con metas, Biblioteca Co-op, Cromos, Ruleta 60 FPS, XInput y Centinela ATL en bandeja.",
+            "🧩 Arquitectura desacoplada v3: puente JSON puro (`web_bridge/`) sin dependencias de Tkinter/CustomTkinter y empaquetado liviano (`SteamScope_v3.spec`)."
+        ]
+    },
     {
         "version": "v2.0.1",
         "fecha": "Noviembre 2026",

@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional
 
 from core.api_client import HTTP_SESSION, consultar_dolar_api
 from core.config import STEAM_CALENDAR, limpiar_cache_imagenes
-from core.exporters import escribir_csv
+from core.csv_utils import escribir_csv
 from core.multi_store import obtener_promociones_epic
 
 

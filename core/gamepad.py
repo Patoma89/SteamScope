@@ -1,5 +1,5 @@
 """
-Módulo de Soporte Nativo para Gamepad / Mando (XInput) para SteamScope 2.0 (SRP / Core Puro).
+Módulo de Soporte Nativo para Gamepad / Mando (XInput) para SteamScope (SRP / Core Puro).
 Utiliza la API nativa XInput de Windows mediante ctypes (sin dependencias externas).
 Soporta mandos de Xbox 360, Xbox One, Xbox Series X/S, Steam Deck y compatibles XInput.
 """

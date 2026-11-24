@@ -12,7 +12,13 @@ Esta skill describe el pipeline profesional para compilar aplicaciones de escrit
 
 ## ⚙️ 1. Compilación con PyInstaller
 
-### Comando Canónico de Compilación
+### Comando Canónico v3.0 NEXT (Principal — Edge WebView2)
+```powershell
+py -m PyInstaller --noconfirm --clean SteamScope_v3.spec
+```
+Empaqueta `SteamScope_v3.py` junto con `core/`, `web_bridge/`, `web_ui/` y `icono.ico`, excluyendo explícitamente dependencias pesadas de la capa legacy (`customtkinter`, `matplotlib`, `pandas`).
+
+### Comando Legacy v2 (CustomTkinter)
 ```powershell
 py -m PyInstaller `
     --noconfirm `
@@ -29,6 +35,12 @@ py -m PyInstaller `
     --hidden-import pystray._win32 `
     SteamScope.py
 ```
+
+### Checklist Pre-Release (Antes de Compilar)
+1. Alinear `APP_VERSION` y agregar la entrada superior en `PATCH_NOTES` dentro de `core/config.py`.
+2. Actualizar `version`, `url` y `notas` en `version.json`.
+3. Verificar la versión inicial mostrada en `web_ui/index.html` (`#app-ver-lbl`).
+4. Actualizar `#define MyAppVersion` en `Newnew.iss`.
 
 ### Explicación de Flags Críticos:
 - `--onefile`: Empaqueta el runtime de Python, librerías C y scripts en un solo binario en `dist/`.

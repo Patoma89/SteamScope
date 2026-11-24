@@ -4,64 +4,6 @@
 
 const RING_CIRCUMFERENCE = 2 * Math.PI * 29;
 
-const PHASE_INFO = {
-  deals: {
-    phase: "FASE 2 · EXPLORACIÓN",
-    title: "Ofertas & Búsqueda de Steam",
-    desc: "Escaneo multi-hilo con precios regionales AR en lote, filtros jerárquicos de 2 niveles, píldoras KPI, 3 modos de vista (Normal, Compacta, Grilla) y Changuito con Budget Tracker."
-  },
-  radar: {
-    phase: "FASE 5 · MULTI-TIENDA",
-    title: "Radar Epic Games & GOG",
-    desc: "Monitor de juegos 100% gratis semanales en Epic Games Store y catálogo sin DRM de GOG con alertas de tiempo límite y reclamo directo."
-  },
-  atl: {
-    phase: "FASE 4 · CENTINELA",
-    title: "Historial de Récords ATL",
-    desc: "Registro completo de mínimos históricos detectados en tu Watchlist y escaneos, con alertas interactivas y apertura directa de Ficha Técnica."
-  },
-  watchlist: {
-    phase: "FASE 4 · SEGUIMIENTO",
-    title: "Mi Watchlist & Precios Objetivo",
-    desc: "Importación rápida de Wishlist de Steam, comprobación paralela de rebajas, etiquetas personalizadas y alertas por Precio Objetivo (🎯)."
-  },
-  library: {
-    phase: "FASE 4 · CUENTA STEAM",
-    title: "Mi Biblioteca, Valuador & Radar Co-op",
-    desc: "Lectura en 0 ms desde caché SQLite paginada, valuador de cuenta ($/hora y juegos 0 hs), sorteo de backlog y cruce multijugador con amigos."
-  },
-  cards: {
-    phase: "FASE 4 · INVENTARIO",
-    title: "Gestor de Cromos & Billetera Steam",
-    desc: "Valorizador inteligente de cromos acumulables calculando el -15% de comisión de mercado para financiar compras."
-  },
-  dashboard: {
-    phase: "FASE 5 · ANALÍTICA GPU",
-    title: "Dashboard Visual de Estadísticas",
-    desc: "Gráficos interactivos en vivo de distribución de descuentos, top géneros, estado de tu backlog y juegos más jugados."
-  },
-  versus: {
-    phase: "FASE 3 · COMPARATIVA",
-    title: "Comparador Cara a Cara (Versus)",
-    desc: "Enfrentá dos juegos lado a lado en precio USD/ARS, descuento, mínimo histórico, Metacritic, peso en disco y ProtonDB."
-  },
-  roulette: {
-    phase: "FASE 5 · SORTEO 60 FPS",
-    title: "Ruleta Loot Box (Spin-In-Place)",
-    desc: "Sorteo fluido a 60 FPS sobre ofertas destacadas o tu backlog sin cerrar la ventana y con validación anti-duplicados."
-  },
-  events: {
-    phase: "FASE 5 · CALENDARIO",
-    title: "Eventos Oficiales de Steam & Calculadora ARS",
-    desc: "Cuenta regresiva para próximas rebajas estacionales de Valve y simulador de cotización Tarjeta vs. Cripto / Web."
-  },
-  settings: {
-    phase: "FASE 5 · CONFIGURACIÓN",
-    title: "Ajustes, API Key, Discord & Backup",
-    desc: "Configuración de Steam ID, API Key, Dólar en vivo, Discord Webhook, Gestor de Blacklist y respaldo portátil en .zip."
-  }
-};
-
 const state = {
   bootstrap: null,
   cc: null,
@@ -311,12 +253,11 @@ function navigateTo(tabId) {
     if (tabId === "settings") { window.ToolsView.mountSettings(dynView); return; }
   }
 
-  const info = PHASE_INFO[tabId] || { phase: "PRÓXIMAMENTE", title: tabId, desc: "Módulo en migración hacia SteamScope 3.0 NEXT." };
   dynView.innerHTML = `
     <div class="glass-card phase-placeholder">
-      <span class="phase-badge">${escapeHtml(info.phase)}</span>
-      <h2>${escapeHtml(info.title)}</h2>
-      <p>${escapeHtml(info.desc)}</p>
+      <span class="phase-badge">STEAMSCOPE 3.0 NEXT</span>
+      <h2>Vista no disponible (${escapeHtml(tabId)})</h2>
+      <p>La sección solicitada no se pudo inicializar en este momento.</p>
       <button class="btn-primary-accent" id="btn-back-cc">← Volver al Centro de Mando</button>
     </div>
   `;
@@ -646,6 +587,7 @@ window.SteamScopeUI = {
   escapeHtml,
   showToast,
   renderCommandCenter,
+  refreshCommandCenter: () => window.pywebview?.api?.get_command_center_data().then(renderCommandCenter),
   openCartModal,
   openModal,
   closeModal,
