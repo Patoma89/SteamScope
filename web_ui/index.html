@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="es" data-mode="Dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SteamScope 3.0 NEXT — Centro de Mando</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="app-shell" id="app-shell">
+    <!-- ==================== SIDEBAR ==================== -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-mark">
+          <div class="brand-emblem">
+            <img src="/assets/icono.ico" alt="SteamScope" />
+          </div>
+          <div class="brand-titles">
+            <span class="brand-name">STEAMSCOPE</span>
+            <span class="brand-sub">3.0 NEXT</span>
+          </div>
+        </div>
+        <button class="icon-btn" id="btn-collapse" title="Colapsar barra lateral">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M15 18l-6-6 6-6"/>
+          </svg>
+        </button>
+      </div>
+
+      <nav class="sidebar-nav" id="sidebar-nav">
+        <div class="nav-section-label">Vista General</div>
+        <button class="nav-item active" data-tab="command_center">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+          <span class="nav-label">Centro de Mando</span>
+          <span class="nav-badge live">LIVE</span>
+        </button>
+
+        <div class="nav-section-label">Explorar &amp; Cazar</div>
+        <button class="nav-item" data-tab="deals">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l2.6 5.3L20 8l-4 3.9.9 5.5L12 14.8l-4.9 2.6.9-5.5L4 8l5.4-.7L12 2z"/></svg>
+          <span class="nav-label">Ofertas &amp; Búsqueda</span>
+        </button>
+        <button class="nav-item" data-tab="radar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/></svg>
+          <span class="nav-label">Radar Epic &amp; GOG</span>
+        </button>
+        <button class="nav-item" data-tab="atl">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+          <span class="nav-label">Récords ATL</span>
+          <span class="nav-badge" id="nav-atl-badge" style="display:none">0</span>
+        </button>
+
+        <div class="nav-section-label">Mi Cuenta Steam</div>
+        <button class="nav-item" data-tab="watchlist">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+          <span class="nav-label">Mi Watchlist</span>
+        </button>
+        <button class="nav-item" data-tab="library">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="3"/><path d="M6 12h4M8 10v4M15 11h.01M18 13h.01"/></svg>
+          <span class="nav-label">Mi Biblioteca &amp; Co-op</span>
+        </button>
+        <button class="nav-item" data-tab="cards">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="14" height="18" rx="2"/><path d="M7 2h12a2 2 0 0 1 2 2v14"/></svg>
+          <span class="nav-label">Gestor de Cromos</span>
+        </button>
+
+        <div class="nav-section-label">Herramientas</div>
+        <button class="nav-item" data-tab="dashboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          <span class="nav-label">Dashboard Visual</span>
+        </button>
+        <button class="nav-item" data-tab="versus">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 17.5L3 6V3h3l11.5 11.5"/><path d="M13 19l6-6"/><path d="M16 16l4 4"/><path d="M19 21l2-2"/></svg>
+          <span class="nav-label">Comparador Versus</span>
+        </button>
+        <button class="nav-item" data-tab="roulette">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/><path d="M12 3v6.5M12 14.5V21M3 12h6.5M14.5 12H21"/></svg>
+          <span class="nav-label">Ruleta Loot Box</span>
+        </button>
+        <button class="nav-item" data-tab="events">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <span class="nav-label">Eventos &amp; Calc</span>
+        </button>
+        <button class="nav-item" data-tab="settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span class="nav-label">Ajustes</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="footer-controls">
+          <button class="skin-select-btn" id="btn-socials" title="Redes Oficiales — Patoma89">
+            <span class="skin-dot"></span>
+            <span class="footer-text">Redes</span>
+          </button>
+          <button class="icon-btn" id="btn-github-update" title="Buscar actualización en GitHub">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+          </button>
+          <button class="icon-btn" id="btn-patch-notes" title="Notas de Versión">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          </button>
+        </div>
+        <div class="footer-status">
+          <span class="status-pill"><span class="pulse-dot"></span><span class="footer-text">SQLite WAL · GPU</span></span>
+          <span class="footer-text" id="app-ver-lbl">v2.0.1</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ==================== MAIN AREA ==================== -->
+    <div class="main-area">
+      <header class="top-hud">
+        <button class="hud-search-trigger" id="btn-open-search">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <span>Buscar juegos en watchlist, biblioteca, récords o secciones...</span>
+          <span class="kbd-badge">Ctrl+K</span>
+        </button>
+
+        <div class="hud-right">
+          <span class="hud-chip active" id="hud-gamepad-chip" style="display:none" title="Mando XInput conectado">🎮 Mando</span>
+          <div class="hud-fx-pill" id="hud-fx-pill" title="Cotización configurada en SteamScope">
+            <span>💵</span>
+            <span id="hud-dolar-lbl">$1.000</span>
+            <span class="fx-sep">|</span>
+            <span id="hud-cripto-lbl">🪙 $1.150</span>
+          </div>
+
+          <select class="t-select hud-select" id="hud-currency-select" title="Moneda activa">
+            <option value="USD">💵 USD</option>
+            <option value="ARS (Tarjeta)">💳 ARS (Tarjeta)</option>
+            <option value="ARS (Cripto)">🪙 ARS (Cripto)</option>
+          </select>
+
+          <select class="t-select hud-select" id="hud-skin-select" title="Cambiar Skin en vivo"></select>
+
+          <button class="hud-chip" id="btn-topmost" title="Fijar ventana siempre encima">
+            <span>📌</span>
+            <span id="topmost-lbl">Fijar</span>
+          </button>
+
+          <div class="hud-chip cart-chip" id="hud-cart-chip" title="Resumen del Changuito">
+            <span>🛒</span>
+            <span id="hud-cart-lbl">0 · $0.00</span>
+          </div>
+        </div>
+      </header>
+
+      <main class="content-scroll" id="content-scroll">
+        <!-- VISTA: CENTRO DE MANDO -->
+        <section id="view-command_center">
+          <div class="hero-strip">
+            <div>
+              <h1 class="hero-title">CENTRO DE MANDO <span>STEAMSCOPE</span></h1>
+              <p class="hero-sub">Monitoreo de ofertas, watchlist, backlog SQLite y presupuesto en tiempo real sobre interfaz GPU.</p>
+            </div>
+            <button class="btn-primary-accent" id="btn-explore-deals">
+              <span>🔥</span>
+              <span>Explorar Ofertas</span>
+            </button>
+          </div>
+
+          <!-- 4 KPI CARDS CON ANILLOS SVG -->
+          <div class="kpi-grid">
+            <div class="glass-card kpi-card clickable-card" data-goto="atl" title="Ver Récords ATL">
+              <div class="kpi-card-title">
+                <span>Récords ATL</span>
+                <span class="kpi-sub-tag" id="kpi-atl-sub">Centinela activo</span>
+              </div>
+              <div class="kpi-card-body">
+                <div class="ring-wrap">
+                  <svg class="ring-svg" viewBox="0 0 72 72">
+                    <circle class="ring-track" cx="36" cy="36" r="29"/>
+                    <circle class="ring-fill" id="ring-atl" cx="36" cy="36" r="29" stroke-dasharray="182.2" stroke-dashoffset="182.2"/>
+                  </svg>
+                  <div class="ring-center" id="ring-atl-pct">0</div>
+                </div>
+                <div class="kpi-metrics">
+                  <div class="kpi-big-num" id="kpi-atl-num">0</div>
+                  <div class="kpi-meta-line" id="kpi-atl-meta">Sin alertas capturadas aún</div>
+                  <span class="kpi-pill">Historial ATL →</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="glass-card kpi-card clickable-card" data-goto="watchlist" title="Ir a Mi Watchlist">
+              <div class="kpi-card-title">
+                <span>Mi Watchlist</span>
+                <span class="kpi-sub-tag" id="kpi-wl-targets">0 con meta 🎯</span>
+              </div>
+              <div class="kpi-card-body">
+                <div class="ring-wrap">
+                  <svg class="ring-svg" viewBox="0 0 72 72">
+                    <circle class="ring-track" cx="36" cy="36" r="29"/>
+                    <circle class="ring-fill emerald" id="ring-wl" cx="36" cy="36" r="29" stroke-dasharray="182.2" stroke-dashoffset="182.2"/>
+                  </svg>
+                  <div class="ring-center" id="ring-wl-pct">0%</div>
+                </div>
+                <div class="kpi-metrics">
+                  <div class="kpi-big-num" id="kpi-wl-num">0</div>
+                  <div class="kpi-meta-line">Juegos en seguimiento</div>
+                  <span class="kpi-pill pill-emerald">Watchlist →</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="glass-card kpi-card clickable-card" data-goto="library" title="Ir a Mi Biblioteca &amp; Co-op">
+              <div class="kpi-card-title">
+                <span>Backlog Jugado</span>
+                <span class="kpi-sub-tag" id="kpi-lib-hours">0 hs</span>
+              </div>
+              <div class="kpi-card-body">
+                <div class="ring-wrap">
+                  <svg class="ring-svg" viewBox="0 0 72 72">
+                    <circle class="ring-track" cx="36" cy="36" r="29"/>
+                    <circle class="ring-fill blue" id="ring-lib" cx="36" cy="36" r="29" stroke-dasharray="182.2" stroke-dashoffset="182.2"/>
+                  </svg>
+                  <div class="ring-center" id="ring-lib-pct">0%</div>
+                </div>
+                <div class="kpi-metrics">
+                  <div class="kpi-big-num" id="kpi-lib-num">0</div>
+                  <div class="kpi-meta-line" id="kpi-lib-unplayed">0 sin estrenar</div>
+                  <span class="kpi-pill pill-blue">Biblioteca →</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="glass-card kpi-card clickable-card" data-goto="deals" title="Ver Changuito y Ofertas">
+              <div class="kpi-card-title">
+                <span>Changuito</span>
+                <span class="kpi-sub-tag" id="kpi-cart-budget">Sin tope</span>
+              </div>
+              <div class="kpi-card-body">
+                <div class="ring-wrap">
+                  <svg class="ring-svg" viewBox="0 0 72 72">
+                    <circle class="ring-track" cx="36" cy="36" r="29"/>
+                    <circle class="ring-fill amber" id="ring-cart" cx="36" cy="36" r="29" stroke-dasharray="182.2" stroke-dashoffset="182.2"/>
+                  </svg>
+                  <div class="ring-center" id="ring-cart-pct">0%</div>
+                </div>
+                <div class="kpi-metrics">
+                  <div class="kpi-big-num" id="kpi-cart-num">$0.00</div>
+                  <div class="kpi-meta-line" id="kpi-cart-sub">0 juegos · Ahorro $0.00</div>
+                  <span class="kpi-pill pill-amber">Presupuesto →</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- BENTO GRID 3 COLUMNAS -->
+          <div class="bento-main">
+            <!-- Col 1: Watchlist Reciente -->
+            <div class="glass-card panel-card">
+              <div class="panel-header">
+                <span class="panel-title clickable-link" data-goto="watchlist">Watchlist Guardada →</span>
+                <span class="panel-hint" id="cc-wl-badge">0 juegos</span>
+              </div>
+              <div class="cc-list" id="cc-watchlist-list"></div>
+            </div>
+
+            <!-- Col 2: Últimos Récords ATL -->
+            <div class="glass-card panel-card">
+              <div class="panel-header">
+                <span class="panel-title clickable-link" data-goto="atl">Últimos Récords ATL →</span>
+                <span class="panel-hint">SQLite Local</span>
+              </div>
+              <div class="cc-list" id="cc-atl-list"></div>
+            </div>
+
+            <!-- Col 3: Cotización + Accesos Rápidos -->
+            <div class="right-col">
+              <div class="glass-card panel-card">
+                <div class="panel-header">
+                  <span class="panel-title">Referencia Cambiaria</span>
+                  <span class="panel-hint" id="cc-fx-imp">Imp: +60%</span>
+                </div>
+                <div class="fx-grid">
+                  <div class="fx-box">
+                    <span>💳 Dólar Tarjeta</span>
+                    <strong id="cc-fx-tarjeta">$1.600 ARS</strong>
+                  </div>
+                  <div class="fx-box">
+                    <span>🪙 Dólar Cripto</span>
+                    <strong id="cc-fx-cripto">$1.150 ARS</strong>
+                  </div>
+                </div>
+                <div class="fx-note" id="cc-fx-saving">Pagando por Steam Web / Cripto evitás percepciones extra.</div>
+              </div>
+
+              <div class="glass-card panel-card">
+                <div class="panel-header">
+                  <span class="panel-title">Accesos Rápidos</span>
+                </div>
+                <div class="quick-grid">
+                  <button class="quick-tile accent" data-goto="deals">🔥 Ofertas Steam</button>
+                  <button class="quick-tile emerald" data-goto="radar">🎁 Epic &amp; GOG</button>
+                  <button class="quick-tile blue" data-goto="cards">🃏 Cromos</button>
+                  <button class="quick-tile amber" data-goto="roulette">🎰 Ruleta</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- CONTENEDOR DINÁMICO PARA FASES 2-5 -->
+        <section id="view-dynamic" style="display:none"></section>
+      </main>
+    </div>
+  </div>
+
+  <!-- MODAL: SPOTLIGHT CTRL+K -->
+  <div class="modal-backdrop" id="modal-spotlight">
+    <div class="modal-box">
+      <div class="spotlight-input-wrap">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2">
+          <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input type="text" class="spotlight-input" id="spotlight-input" placeholder="Buscar juegos en watchlist, biblioteca, récords o secciones..." autocomplete="off" />
+        <span class="kbd-badge">ESC</span>
+      </div>
+      <div class="spotlight-results" id="spotlight-results">
+        <div class="empty-state">Escribí al menos 2 caracteres para buscar al instante en tu catálogo local…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: REDES SOCIALES -->
+  <div class="modal-backdrop" id="modal-socials">
+    <div class="modal-box" style="width:460px">
+      <div class="spotlight-input-wrap" style="justify-content:space-between">
+        <strong class="modal-title-txt">REDES OFICIALES — PATOMA89</strong>
+        <button class="icon-btn" id="btn-close-socials">✕</button>
+      </div>
+      <div class="socials-stack">
+        <button class="social-card youtube" data-ext-url="https://www.youtube.com/@Patoma89">
+          <span class="social-ico">▶</span>
+          <div class="social-meta">
+            <strong>YouTube — @Patoma89</strong>
+            <span>https://www.youtube.com/@Patoma89</span>
+          </div>
+          <span class="social-cta">Abrir ↗</span>
+        </button>
+        <button class="social-card twitch" data-ext-url="https://www.twitch.tv/patoma89">
+          <span class="social-ico">🟪</span>
+          <div class="social-meta">
+            <strong>Twitch — patoma89</strong>
+            <span>https://www.twitch.tv/patoma89</span>
+          </div>
+          <span class="social-cta">Abrir ↗</span>
+        </button>
+        <button class="social-card discord" data-ext-url="https://discord.gg/MJzMg2rT37">
+          <span class="social-ico">💬</span>
+          <div class="social-meta">
+            <strong>Discord Oficial</strong>
+            <span>https://discord.gg/MJzMg2rT37</span>
+          </div>
+          <span class="social-cta">Unirse ↗</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ACTUALIZADOR GITHUB -->
+  <div class="modal-backdrop" id="modal-update">
+    <div class="modal-box" style="width:540px">
+      <div class="spotlight-input-wrap" style="justify-content:space-between">
+        <strong class="modal-title-txt">ACTUALIZACIÓN VÍA GITHUB</strong>
+        <button class="icon-btn" id="btn-close-update">✕</button>
+      </div>
+      <div id="update-body" class="modal-body-pad"></div>
+    </div>
+  </div>
+
+  <!-- MODAL: PATCH NOTES -->
+  <div class="modal-backdrop" id="modal-notes">
+    <div class="modal-box">
+      <div class="spotlight-input-wrap" style="justify-content:space-between">
+        <strong class="modal-title-txt">NOTAS DE VERSIÓN — STEAMSCOPE</strong>
+        <button class="icon-btn" id="btn-close-notes">✕</button>
+      </div>
+      <div class="spotlight-results" id="notes-body" style="padding:14px 16px;gap:10px"></div>
+    </div>
+  </div>
+
+  <!-- MODAL: CHANGUITO & BUDGET TRACKER -->
+  <div class="modal-backdrop" id="modal-cart">
+    <div class="modal-box" style="width:760px">
+      <div class="spotlight-input-wrap" style="justify-content:space-between">
+        <strong class="modal-title-txt">🛒 CHANGUITO &amp; BUDGET TRACKER</strong>
+        <button class="icon-btn" id="btn-close-cart">✕</button>
+      </div>
+      <div id="cart-modal-body" class="modal-body-pad"></div>
+    </div>
+  </div>
+
+  <!-- MODAL: FICHA TÉCNICA PRO -->
+  <div class="modal-backdrop" id="modal-ficha">
+    <div class="modal-box modal-ficha-box">
+      <div class="spotlight-input-wrap" style="justify-content:space-between">
+        <strong class="modal-title-txt" id="ficha-modal-title">🖥️ FICHA TÉCNICA STEAMSCOPE</strong>
+        <button class="icon-btn" id="btn-close-ficha" title="Cerrar (ESC)">✕</button>
+      </div>
+      <div id="ficha-modal-body" class="ficha-scroll-body"></div>
+    </div>
+  </div>
+
+  <!-- MODAL: LIGHTBOX TÁCTICO HD (ZOOM / PAN / F11) -->
+  <div class="modal-backdrop" id="modal-lightbox">
+    <div class="lightbox-modal" id="lightbox-modal">
+      <div class="lightbox-header">
+        <div>
+          <strong class="modal-title-txt" id="lightbox-title">VISOR HD DE CAPTURAS</strong>
+          <div style="font-size:11px;color:var(--subtext)" id="lightbox-sub">Rueda para zoom · Arrastrá para mover · ← / → · F11 Pantalla completa</div>
+        </div>
+        <div class="lightbox-controls">
+          <button type="button" class="btn-ghost btn-lb" id="lb-prev" title="Anterior (←)">◀</button>
+          <span class="kbd-badge" id="lb-counter">1 / 1</span>
+          <button type="button" class="btn-ghost btn-lb" id="lb-next" title="Siguiente (→)">▶</button>
+          <button type="button" class="btn-ghost btn-lb" id="lb-zoom-out">−</button>
+          <span class="kbd-badge" id="lb-zoom-lbl">100%</span>
+          <button type="button" class="btn-ghost btn-lb" id="lb-zoom-in">+</button>
+          <button type="button" class="btn-ghost btn-lb" id="lb-zoom-reset">Ajustar</button>
+          <button type="button" class="btn-ghost btn-lb" id="lb-fullscreen" title="Pantalla Completa (F11)">⛶ F11</button>
+          <button type="button" class="icon-btn" id="btn-close-lightbox" title="Cerrar (ESC)">✕</button>
+        </div>
+      </div>
+      <div class="lightbox-stage" id="lightbox-stage">
+        <img id="lightbox-img" src="" alt="Captura HD" draggable="false" />
+      </div>
+    </div>
+  </div>
+
+  <!-- MENÚ CONTEXTUAL DE OFERTA -->
+  <div class="ctx-menu" id="deal-context-menu"></div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="/views_deals.js"></script>
+  <script src="/views_ficha.js"></script>
+  <script src="/views_account.js"></script>
+  <script src="/views_tools.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
