@@ -1,10 +1,10 @@
 {
-  "version": "v2.0.1",
-  "url": "https://github.com/Patoma89/SteamScope/releases/download/v2.0.1/SteamScope_v2.0.1_Setup.exe",
+  "version": "v3.0.0",
+  "url": "https://github.com/Patoma89/SteamScope/releases/download/v3.0.0/SteamScope_v3.0.0_Setup.exe",
   "notas": [
-    "🩹 Corrección en Ficha Técnica: Solucionado el fallo que impedía guardar o editar notas personales privadas.",
-    "📐 Diseño y Botonera Blindada: Barra inferior ensanchada para asegurar que el botón 'Compartir' no se corte y 'Cerrar' quede visible.",
-    "🌐 Descuento dinámico en botón Web: Detección en vivo de ofertas evitando porcentajes estáticos incorrectos.",
-    "🔄 Sincronización instantánea: Refresco automático e inmediato de la Watchlist al actualizar apuntes de juegos."
+    "🚀 Nueva interfaz GPU-Acelerada Edge WebView2 (Obsidian Glassmorphism) a 60 FPS.",
+    "🎛️ Centro de Mando con anillos SVG, Spotlight Ctrl+K y 8+ Skins dinámicas.",
+    "🖼️ Ficha Técnica Pro con Lightbox HD (zoom/pan/F11) y Comparador Versus 1v1.",
+    "🎮 Soporte completo para Radar Epic & GOG, Watchlist, Biblioteca Co-op, Cromos, Ruleta y XInput."
   ]
 }
