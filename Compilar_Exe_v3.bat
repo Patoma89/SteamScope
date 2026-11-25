@@ -35,7 +35,7 @@ if exist "dist\SteamScope.exe" (
     )
     echo ========================================================
     echo   EXITO!
-    echo   - Instalador Setup: Output\SteamScope_v3.0.0_Setup.exe
+    echo   - Instalador Setup: Output\SteamScope_v3.0.1_Setup.exe
     echo   - Ejecutable base:  dist\SteamScope.exe
     echo ========================================================
     if exist "Output" explorer Output

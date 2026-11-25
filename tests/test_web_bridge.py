@@ -190,7 +190,7 @@ class TestWebBridge(unittest.TestCase):
         with open(version_json_path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
-        self.assertEqual(APP_VERSION, "3.0.0")
+        self.assertEqual(APP_VERSION, "3.0.1")
         self.assertEqual(data["version"].lstrip("vV"), APP_VERSION)
         self.assertEqual(PATCH_NOTES[0]["version"], f"v{APP_VERSION}")
         self.assertEqual(self.api.get_bootstrap()["version"], APP_VERSION)

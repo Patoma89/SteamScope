@@ -221,7 +221,8 @@ function renderCommandCenter(cc) {
     wlEl.innerHTML = `<div class="empty-state">Tu Watchlist está vacía. Agregá juegos desde Ofertas o sincronizá tu Wishlist.</div>`;
   } else {
     wlEl.innerHTML = wlItems.map(it => `
-      <div class="cc-row">
+      <div class="cc-row cc-wl-row" data-appid="${escapeHtml(it.appid)}" style="cursor:pointer">
+        <img class="cc-top-thumb" src="${escapeHtml(steamCoverUrl(it.appid, it.cover_url))}" alt="${escapeHtml(it.titulo)}" loading="lazy" onerror="window.SteamScopeUI.handleSteamImgError(this, '${escapeHtml(it.appid)}', this.alt)" />
         <div class="cc-row-main">
           <div class="cc-row-title">${escapeHtml(it.titulo)}</div>
           <div class="cc-row-sub">
@@ -232,13 +233,37 @@ function renderCommandCenter(cc) {
         <span class="cc-price-tag">${escapeHtml(formatPrice(it.precio_usd))}</span>
       </div>
     `).join("");
+    wlEl.querySelectorAll(".cc-wl-row").forEach(row => {
+      row.addEventListener("click", () => {
+        if (window.FichaView) window.FichaView.openFicha(row.dataset.appid);
+      });
+    });
   }
 
   // Lista ATL
   const atlEl = document.getElementById("cc-atl-list");
   const atlItems = cc.atl?.recent || [];
   if (!atlItems.length) {
-    atlEl.innerHTML = `<div class="empty-state">Todavía no hay mínimos históricos (ATL) registrados en el historial local.</div>`;
+    atlEl.innerHTML = `
+      <div class="empty-state" style="display:flex;flex-direction:column;gap:8px;align-items:center;justify-content:center;flex:1;padding:12px">
+        <span>Sin mínimos históricos (ATL) capturados aún.</span>
+        <button type="button" class="btn-ghost" id="btn-cc-check-atl">🔍 Comprobar rebajas en Watchlist</button>
+      </div>
+    `;
+    document.getElementById("btn-cc-check-atl")?.addEventListener("click", async (e) => {
+      const btn = e.currentTarget;
+      btn.disabled = true;
+      btn.textContent = "⏳ Comprobando...";
+      const r = await window.pywebview.api.check_watchlist_drops();
+      if (r?.ok) {
+        renderCommandCenter(r.command_center);
+        showToast(`✅ Revisados ${r.checked} juegos (${r.atl_hits?.length || 0} nuevos ATL)`);
+      } else {
+        btn.disabled = false;
+        btn.textContent = "🔍 Comprobar rebajas en Watchlist";
+        showToast(`⚠️ ${r?.error || "Tu Watchlist está vacía"}`);
+      }
+    });
   } else {
     atlEl.innerHTML = atlItems.map(a => `
       <div class="cc-row">
@@ -602,6 +627,9 @@ async function refreshFxLive(force = true) {
       if (["watchlist", "atl", "library", "cards"].includes(state.activeTab) && window.AccountView) {
         window.AccountView.refreshActive(state.activeTab);
       }
+      if (["radar", "dashboard", "roulette"].includes(state.activeTab) && window.ToolsView?.refreshActive) {
+        window.ToolsView.refreshActive(state.activeTab);
+      }
       if (document.getElementById("modal-cart")?.classList.contains("open")) {
         const cartRes = await window.pywebview.api.get_cart();
         renderCartModal(cartRes);
@@ -661,6 +689,9 @@ function wireEvents() {
       }
       if (["watchlist", "atl", "library", "cards"].includes(state.activeTab) && window.AccountView) {
         window.AccountView.refreshActive(state.activeTab);
+      }
+      if (["radar", "dashboard", "roulette"].includes(state.activeTab) && window.ToolsView?.refreshActive) {
+        window.ToolsView.refreshActive(state.activeTab);
       }
       if (document.getElementById("modal-cart")?.classList.contains("open")) {
         const cartRes = await window.pywebview.api.get_cart();

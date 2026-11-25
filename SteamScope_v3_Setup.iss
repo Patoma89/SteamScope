@@ -4,7 +4,7 @@
 ; =======================================================
 
 #define MyAppName "SteamScope"
-#define MyAppVersion "3.0.0"
+#define MyAppVersion "3.0.1"
 #define MyAppPublisher "Patoma89"
 #define MyAppURL "https://github.com/Patoma89/SteamScope"
 #define MyAppExeName "SteamScope.exe"

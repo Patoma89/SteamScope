@@ -457,11 +457,11 @@
           const isFree = it.descuento === 100 || (it.precio_oferta_usd === 0 && it.descuento > 0);
           const priceNow = isFree ? "GRATIS" : fmt(it.precio_oferta_usd);
           const priceOld = it.precio_normal_usd > it.precio_oferta_usd ? fmt(it.precio_normal_usd) : "";
-          const imgUrl = dealsState.vista === "Compacta" ? it.thumb_url : (it.header_url || it.thumb_url);
+          const imgUrl = it.cover_url || (dealsState.vista === "Compacta" ? it.thumb_url : (it.header_url || it.thumb_url));
 
           return `
             <article class="deal-card-item ${it.es_atl ? "is-atl" : ""}" data-appid="${esc(it.appid)}">
-              <img class="deal-cover" src="${esc(imgUrl)}" alt="${esc(it.titulo)}" loading="lazy" onerror="this.src='${esc(it.thumb_url)}'" />
+              <img class="deal-cover" src="${esc(imgUrl)}" alt="${esc(it.titulo)}" loading="lazy" onerror="window.SteamScopeUI.handleSteamImgError(this, '${esc(it.appid)}', this.alt)" />
               <div class="deal-body">
                 <div class="deal-badges-row">
                   ${it.es_atl ? `<span class="d-badge atl">⭐ RÉCORD ATL</span>` : ""}

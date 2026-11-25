@@ -6,7 +6,7 @@ import threading
 import winsound
 
 # ================= CONSTANTES Y CONFIGURACIÓN =================
-APP_VERSION = "3.0.0"
+APP_VERSION = "3.0.1"
 APP_NAME = "SteamScope"
 
 UPDATE_JSON_URL = "https://raw.githubusercontent.com/Patoma89/SteamScope/main/version.json"
@@ -14,6 +14,17 @@ GITHUB_API_RELEASES = "https://api.github.com/repos/Patoma89/SteamScope/releases
 FALLBACK_RELEASES_WEB = "https://github.com/Patoma89/SteamScope/releases"
 
 PATCH_NOTES = [
+    {
+        "version": "v3.0.1",
+        "fecha": "Noviembre 2026",
+        "cambios": [
+            "🎛️ Centro de Mando Bento en 3 columnas equilibradas sin huecos vacíos: Watchlist dinámica con miniaturas (hasta 20 juegos), Top 5 Más Jugados, Próximo Evento Steam y botón rápido de comprobación ATL.",
+            "💵 Dólar unificado en 1 sola petición (DolarAPI + respaldos CriptoYa y Bluelytics), caché TTL de 30 min, chip clickeable en el HUD, Dólar MEP y presets de impuestos AR (51% por defecto).",
+            "🖼️ Resolución automática con caché SQLite (app_covers) para portadas con hash SHA-1 de juegos nuevos de Steam (como Escape from Tarkov y Resident Evil Requiem) en Biblioteca, Watchlist, Ofertas, Ficha, Versus y Ruleta.",
+            "🎁 Radar Multi-Tienda con catálogo en vivo de GOG (juegos gratis y top ofertas DRM-Free) y actualización de moneda en tiempo real en todas las pestañas.",
+            "🎰 Ruleta con selector de 1 / 3 / 5 juegos + modo Backlog con contador en vivo, Dashboard con 4 KPIs financieros y escaneo en 1 clic, e instalador blindado contra variables _PYI_*."
+        ]
+    },
     {
         "version": "v3.0.0",
         "fecha": "Noviembre 2026",

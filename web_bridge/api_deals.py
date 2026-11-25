@@ -369,6 +369,7 @@ class WebAPIDealsMixin:
 
         wl_ids = self.db.get_watchlist_ids_set() or set()
         cart_ids = set((self.config.datos.get("carrito_guardado", {}) or {}).keys())
+        covers = self.db.get_cover_urls_batch([it.get("appid") for it in slice_items]) or {}
 
         items_out = []
         for it in slice_items:
@@ -376,6 +377,7 @@ class WebAPIDealsMixin:
             row = dict(it)
             row["in_watchlist"] = aid in wl_ids
             row["in_cart"] = aid in cart_ids
+            row["cover_url"] = covers.get(aid, "")
             items_out.append(row)
 
         return {

@@ -102,7 +102,7 @@
         </div>
         <div class="footer-status">
           <span class="status-pill"><span class="pulse-dot"></span><span class="footer-text">SQLite WAL · GPU</span></span>
-          <span class="footer-text" id="app-ver-lbl">v3.0.0</span>
+          <span class="footer-text" id="app-ver-lbl">v3.0.1</span>
         </div>
       </div>
     </aside>
@@ -249,10 +249,10 @@
             </div>
           </div>
 
-          <!-- BENTO GRID 3 COLUMNAS -->
+          <!-- BENTO GRID 3 COLUMNAS EQUILIBRADAS -->
           <div class="bento-main">
             <!-- Col 1: Watchlist Reciente -->
-            <div class="glass-card panel-card">
+            <div class="glass-card panel-card bento-fill">
               <div class="panel-header">
                 <span class="panel-title clickable-link" data-goto="watchlist">Watchlist Guardada →</span>
                 <span class="panel-hint" id="cc-wl-badge">0 juegos</span>
@@ -260,16 +260,26 @@
               <div class="cc-list" id="cc-watchlist-list"></div>
             </div>
 
-            <!-- Col 2: Últimos Récords ATL -->
-            <div class="glass-card panel-card">
-              <div class="panel-header">
-                <span class="panel-title clickable-link" data-goto="atl">Últimos Mínimos (ATL) →</span>
-                <span class="panel-hint" title="All-Time Low: mínimo histórico absoluto">All-Time Low</span>
+            <!-- Col 2: Top 5 Más Jugados + Últimos Mínimos (ATL) -->
+            <div class="bento-col">
+              <div class="glass-card panel-card">
+                <div class="panel-header">
+                  <span class="panel-title clickable-link" data-goto="library">🏆 Top 5 Más Jugados →</span>
+                  <span class="panel-hint" id="cc-lib-hint">Tu Biblioteca Steam</span>
+                </div>
+                <div class="cc-list" id="cc-top-games-list"></div>
               </div>
-              <div class="cc-list" id="cc-atl-list"></div>
+
+              <div class="glass-card panel-card bento-fill">
+                <div class="panel-header">
+                  <span class="panel-title clickable-link" data-goto="atl">Últimos Mínimos (ATL) →</span>
+                  <span class="panel-hint" title="All-Time Low: mínimo histórico absoluto">All-Time Low</span>
+                </div>
+                <div class="cc-list" id="cc-atl-list"></div>
+              </div>
             </div>
 
-            <!-- Col 3: Cotización + Accesos Rápidos -->
+            <!-- Col 3: Cotización + Próximo Evento + Accesos Rápidos -->
             <div class="right-col">
               <div class="glass-card panel-card">
                 <div class="panel-header">
@@ -295,6 +305,14 @@
 
               <div class="glass-card panel-card">
                 <div class="panel-header">
+                  <span class="panel-title clickable-link" data-goto="events">📅 Próximo Evento Steam →</span>
+                  <span class="panel-hint">Calendario Valve</span>
+                </div>
+                <div id="cc-next-event-box"></div>
+              </div>
+
+              <div class="glass-card panel-card bento-fill">
+                <div class="panel-header">
                   <span class="panel-title">Accesos Rápidos</span>
                 </div>
                 <div class="quick-grid">
@@ -304,25 +322,6 @@
                   <button class="quick-tile amber" data-goto="roulette">🎰 Ruleta</button>
                 </div>
               </div>
-            </div>
-          </div>
-
-          <!-- FILA INFERIOR BENTO: TOP JUGADOS + PRÓXIMO EVENTO -->
-          <div class="bento-bottom">
-            <div class="glass-card panel-card">
-              <div class="panel-header">
-                <span class="panel-title clickable-link" data-goto="library">🏆 Top 5 Más Jugados →</span>
-                <span class="panel-hint" id="cc-lib-hint">Tu Biblioteca Steam</span>
-              </div>
-              <div class="cc-list" id="cc-top-games-list"></div>
-            </div>
-
-            <div class="glass-card panel-card">
-              <div class="panel-header">
-                <span class="panel-title clickable-link" data-goto="events">📅 Próximo Evento Steam →</span>
-                <span class="panel-hint">Calendario Valve</span>
-              </div>
-              <div id="cc-next-event-box"></div>
             </div>
           </div>
         </section>

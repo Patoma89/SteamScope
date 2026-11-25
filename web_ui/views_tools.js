@@ -10,8 +10,11 @@
     rouletteCount: 3,
     lastRouletteAppId: "",
     rouletteSpinning: false,
+    lastRouletteMode: "deals",
+    lastRouletteItems: [],
     radarFilter: "all",
     lastRadarData: null,
+    lastDashboardContainer: null,
   };
 
   /* ==================== 1. RADAR MULTI-TIENDA (EPIC & GOG) ==================== */
@@ -307,6 +310,8 @@
           ? `🎉 ¡${items.length} juegos sorteados! (${items[0].titulo} y más)`
           : `🎉 ${items[0].titulo}`;
         toolsState.lastRouletteAppId = String(items[0].appid || "");
+        toolsState.lastRouletteMode = res.mode;
+        toolsState.lastRouletteItems = items;
         toolsState.rouletteSpinning = false;
         _renderRouletteResult(res.mode, items);
       }
@@ -389,6 +394,7 @@
   }
 
   async function mountDashboard(container) {
+    toolsState.lastDashboardContainer = container;
     const res = await window.pywebview.api.get_dashboard_stats();
     const sum = res?.summary || {};
     const fmt = ui().formatPrice;
@@ -731,5 +737,14 @@
     mountDashboard,
     mountEvents,
     mountSettings,
+    refreshActive: (tabId) => {
+      if (tabId === "radar" && toolsState.lastRadarData) {
+        _renderRadarCards(toolsState.lastRadarData);
+      } else if (tabId === "dashboard" && toolsState.lastDashboardContainer) {
+        mountDashboard(toolsState.lastDashboardContainer);
+      } else if (tabId === "roulette" && toolsState.lastRouletteItems.length) {
+        _renderRouletteResult(toolsState.lastRouletteMode, toolsState.lastRouletteItems);
+      }
+    },
   };
 })();

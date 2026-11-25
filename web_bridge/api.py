@@ -158,6 +158,8 @@ class SteamScopeWebAPI(WebAPIDealsMixin, WebAPIFichaMixin, WebAPIAccountMixin, W
 
         wl_rows = self.db.get_all_watchlist() or []
         target_cnt = sum(1 for r in wl_rows if float(r[6] or 0.0) > 0.0)
+        wl_slice = wl_rows[:20]
+        wl_covers = self.db.get_cover_urls_batch([r[0] for r in wl_slice]) or {}
         watchlist_preview = [
             {
                 "appid": str(r[0]),
@@ -167,8 +169,9 @@ class SteamScopeWebAPI(WebAPIDealsMixin, WebAPIFichaMixin, WebAPIAccountMixin, W
                 "link": str(r[4] or f"https://store.steampowered.com/app/{r[0]}"),
                 "tag": str(r[5] or ""),
                 "target_price": float(r[6] or 0.0),
+                "cover_url": wl_covers.get(str(r[0]), ""),
             }
-            for r in wl_rows[:8]
+            for r in wl_slice
         ]
 
         backlog_metrics = self.db.obtener_metricas_backlog() or {}

@@ -738,9 +738,20 @@ body::before {
 /* ================= BENTO GRID ================= */
 .bento-main {
   display: grid;
-  grid-template-columns: 1.15fr 1.15fr 0.9fr;
+  grid-template-columns: 1.12fr 1.15fr 0.93fr;
   gap: 16px;
-  align-items: start;
+  align-items: stretch;
+}
+
+.bento-col {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.bento-fill {
+  flex: 1;
 }
 
 .panel-card {
@@ -2294,8 +2305,7 @@ body::before {
   .radar-grid,
   .dashboard-grid,
   .events-grid,
-  .settings-grid,
-  .bento-bottom {
+  .settings-grid {
     grid-template-columns: 1fr;
   }
   .dash-kpi-strip {
@@ -2303,12 +2313,29 @@ body::before {
   }
 }
 
-.bento-bottom {
-  display: grid;
-  grid-template-columns: 1.3fr 0.9fr;
-  gap: 16px;
-  margin-top: 16px;
-  align-items: start;
+.bento-main > .panel-card {
+  min-height: 0;
+}
+
+#cc-watchlist-list {
+  flex: 1 1 0;
+  min-height: 360px;
+  max-height: none;
+  overflow-y: auto;
+}
+
+#cc-top-games-list {
+  max-height: 290px;
+}
+
+#cc-atl-list {
+  max-height: 210px;
+  flex: 1;
+}
+
+.right-col .bento-fill .quick-grid {
+  flex: 1;
+  align-content: stretch;
 }
 
 .cc-top-thumb {
