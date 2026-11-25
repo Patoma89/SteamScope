@@ -797,6 +797,74 @@ class TestWebBridge(unittest.TestCase):
         lib = self.api.get_library({"page": 1})
         self.assertEqual(lib["items"][0]["cover_url"], tarkov_url)
 
+    def test_download_and_install_update_rejects_invalid_url(self):
+        res_http = self.api.download_and_install_update("http://example.com/Setup.exe")
+        self.assertFalse(res_http["ok"])
+        res_non_exe = self.api.download_and_install_update("https://github.com/Patoma89/SteamScope/releases")
+        self.assertFalse(res_non_exe["ok"])
+
+    @patch("web_bridge.api.time.sleep")
+    @patch("web_bridge.api.subprocess.Popen")
+    @patch("web_bridge.api.HTTP_SESSION.get")
+    def test_download_and_install_update_streams_validates_and_launches(self, mock_get, mock_popen, _mock_sleep):
+        quit_calls = []
+        api_with_quit = SteamScopeWebAPI(
+            db=self.db,
+            config=self.cfg,
+            sfx=_SilentSFX(),
+            on_quit=lambda: quit_calls.append(True),
+        )
+        pe_bytes = b"MZ" + (b"\x00" * (1024 * 1024 + 64))
+        mock_resp = MagicMock(status_code=200)
+        mock_resp.headers = {"content-length": str(len(pe_bytes))}
+        mock_resp.iter_content.return_value = [pe_bytes[:524288], pe_bytes[524288:]]
+        mock_get.return_value = mock_resp
+
+        with patch.dict(os.environ, {
+            "_MEIPASS2": "C:\\Temp\\_MEI999",
+            "_PYI_APPLICATION_HOME_DIR": "C:\\Temp\\_MEI999",
+            "PYTHONPATH": "C:\\Temp",
+        }):
+            api_with_quit._run_update_download("https://github.com/Patoma89/SteamScope/releases/download/v3.0.1/SteamScope_v3.0.1_Setup.exe")
+
+        prog = api_with_quit.get_update_progress()
+        self.assertTrue(prog["done"])
+        self.assertEqual(prog["error"], "")
+        self.assertAlmostEqual(prog["pct"], 100.0)
+        self.assertEqual(len(quit_calls), 1)
+
+        mock_popen.assert_called_once()
+        args, kwargs = mock_popen.call_args
+        self.assertEqual(args[0][1], "/SILENT")
+        self.assertNotIn("_MEIPASS2", kwargs["env"])
+        self.assertNotIn("_PYI_APPLICATION_HOME_DIR", kwargs["env"])
+        self.assertNotIn("PYTHONPATH", kwargs["env"])
+
+    @patch("web_bridge.api.subprocess.Popen")
+    @patch("web_bridge.api.HTTP_SESSION.get")
+    def test_download_and_install_update_rejects_non_mz_binary(self, mock_get, mock_popen):
+        quit_calls = []
+        api_with_quit = SteamScopeWebAPI(
+            db=self.db,
+            config=self.cfg,
+            sfx=_SilentSFX(),
+            on_quit=lambda: quit_calls.append(True),
+        )
+        bad_bytes = b"HTML" + (b"\x00" * (1024 * 1024 + 64))
+        mock_resp = MagicMock(status_code=200)
+        mock_resp.headers = {"content-length": str(len(bad_bytes))}
+        mock_resp.iter_content.return_value = [bad_bytes]
+        mock_get.return_value = mock_resp
+
+        api_with_quit._run_update_download("https://github.com/Patoma89/SteamScope/releases/download/v3.0.1/SteamScope_v3.0.1_Setup.exe")
+
+        prog = api_with_quit.get_update_progress()
+        self.assertFalse(prog["done"])
+        self.assertFalse(prog["running"])
+        self.assertIn("ejecutable válido", prog["error"])
+        mock_popen.assert_not_called()
+        self.assertEqual(len(quit_calls), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

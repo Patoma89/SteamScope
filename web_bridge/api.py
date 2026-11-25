@@ -2,6 +2,12 @@
 Puente Backend JSON puro para SteamScope 3.0 NEXT (Edge WebView2 + pywebview).
 Consume exclusivamente la capa core/ sin importar Tkinter, CustomTkinter ni pywebview.
 """
+import os
+import subprocess
+import sys
+import tempfile
+import threading
+import time
 import webbrowser
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional
@@ -66,6 +72,8 @@ class SteamScopeWebAPI(WebAPIDealsMixin, WebAPIFichaMixin, WebAPIAccountMixin, W
         on_toggle_topmost: Optional[Callable[[bool], None]] = None,
         on_open_url: Optional[Callable[[str], Any]] = None,
         on_save_dialog: Optional[Callable[[str, str], Optional[str]]] = None,
+        on_quit: Optional[Callable[[], None]] = None,
+        on_update_progress: Optional[Callable[[float, str], None]] = None,
     ) -> None:
         self.db = db if db is not None else DatabaseManager()
         self.config = config if config is not None else ConfigManager()
@@ -74,11 +82,21 @@ class SteamScopeWebAPI(WebAPIDealsMixin, WebAPIFichaMixin, WebAPIAccountMixin, W
         self._on_toggle_topmost = on_toggle_topmost
         self._on_open_url = on_open_url
         self._on_save_dialog = on_save_dialog
+        self._on_quit = on_quit
+        self._on_update_progress = on_update_progress
         self._always_on_top = False
         self._deals_data: List[Dict[str, Any]] = []
         self._watchlist_live_status: Dict[str, Dict[str, Any]] = {}
         self._friend_appids: set = set()
         self._friend_id: str = ""
+        self._update_lock = threading.Lock()
+        self._update_state: Dict[str, Any] = {
+            "running": False,
+            "pct": 0.0,
+            "status": "",
+            "error": "",
+            "done": False,
+        }
 
     def _get_fx_values(self) -> Dict[str, Any]:
         d = self.config.datos
@@ -462,6 +480,104 @@ class SteamScopeWebAPI(WebAPIDealsMixin, WebAPIFichaMixin, WebAPIAccountMixin, W
             "notas": notas,
             "fallback_url": FALLBACK_RELEASES_WEB,
         }
+
+    def get_update_progress(self) -> Dict[str, Any]:
+        """Devuelve el estado actual de descarga e instalación de la actualización."""
+        with self._update_lock:
+            return dict(self._update_state)
+
+    def _set_update_state(self, **kwargs: Any) -> None:
+        with self._update_lock:
+            self._update_state.update(kwargs)
+            pct = float(self._update_state.get("pct", 0.0))
+            status = str(self._update_state.get("status", ""))
+        if self._on_update_progress is not None:
+            try:
+                self._on_update_progress(pct, status)
+            except Exception:
+                pass
+
+    def download_and_install_update(self, download_url: str) -> Dict[str, Any]:
+        """Descarga el Setup oficial en segundo plano, valida su firma PE y lanza la actualización silenciosa."""
+        url = (download_url or "").strip()
+        if not url.lower().startswith("https://") or not url.lower().endswith(".exe"):
+            return {"ok": False, "error": "URL de instalador inválida (debe ser HTTPS y terminar en .exe)."}
+
+        with self._update_lock:
+            if self._update_state.get("running"):
+                return {"ok": False, "error": "Ya hay una descarga de actualización en curso."}
+            self._update_state = {
+                "running": True,
+                "pct": 0.0,
+                "status": "Iniciando descarga...",
+                "error": "",
+                "done": False,
+            }
+
+        threading.Thread(target=self._run_update_download, args=(url,), daemon=True).start()
+        return {"ok": True, "started": True}
+
+    def _run_update_download(self, url_exe: str) -> None:
+        destino = os.path.join(tempfile.gettempdir(), "SteamScope_Update_Setup.exe")
+        try:
+            r = HTTP_SESSION.get(url_exe, stream=True, timeout=20)
+            if r.status_code != 200:
+                raise RuntimeError(f"Error HTTP {r.status_code} al descargar el instalador.")
+
+            total_len = int(r.headers.get("content-length", 0) or 0)
+            descargado = 0
+            with open(destino, "wb") as f:
+                for chunk in r.iter_content(chunk_size=65536):
+                    if not chunk:
+                        continue
+                    f.write(chunk)
+                    descargado += len(chunk)
+                    if total_len > 0:
+                        pct = round(min(99.0, (descargado / total_len) * 100.0), 1)
+                        self._set_update_state(pct=pct, status="Descargando instalador...")
+
+            if descargado < 1024 * 1024:
+                try:
+                    if os.path.exists(destino):
+                        os.remove(destino)
+                except OSError:
+                    pass
+                raise RuntimeError("El archivo descargado está incompleto o no es un instalador válido.")
+
+            with open(destino, "rb") as f_chk:
+                if f_chk.read(2) != b"MZ":
+                    try:
+                        if os.path.exists(destino):
+                            os.remove(destino)
+                    except OSError:
+                        pass
+                    raise RuntimeError("El archivo descargado no es un ejecutable válido de Windows.")
+
+            clean_env = os.environ.copy()
+            for k in list(clean_env.keys()):
+                if "_MEI" in k or k.startswith("_PYI_") or k.startswith("PYTHON"):
+                    clean_env.pop(k, None)
+
+            creationflags = 0
+            if sys.platform.startswith("win"):
+                creationflags = 0x00000008 | 0x00000200  # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
+
+            subprocess.Popen(
+                [destino, "/SILENT"],
+                env=clean_env,
+                creationflags=creationflags,
+                close_fds=True,
+            )
+
+            self._set_update_state(pct=100.0, status="Instalando actualización...", done=True, running=False)
+            time.sleep(0.6)
+            if self._on_quit is not None:
+                try:
+                    self._on_quit()
+                except Exception:
+                    pass
+        except Exception as exc:
+            self._set_update_state(running=False, done=False, error=str(exc), status="Error al actualizar")
 
     def open_external_url(self, url: str) -> Dict[str, Any]:
         """Abre un enlace externo validando esquema seguro."""

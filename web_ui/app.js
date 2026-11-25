@@ -590,15 +590,71 @@ async function openUpdateModal() {
   }
 
   if (res.has_update) {
+    const isExe = typeof res.url === "string" && res.url.toLowerCase().endsWith(".exe");
     body.innerHTML = `
       <div>🚀 <strong>¡Nueva versión disponible!</strong> (v${escapeHtml(res.current_version)} → <strong>v${escapeHtml(res.latest_version)}</strong>)</div>
       <ul style="padding-left:18px;font-size:12px;color:var(--subtext)">
         ${(res.notas || []).map(n => `<li>${escapeHtml(n)}</li>`).join("")}
       </ul>
-      <button class="btn-primary-accent" id="btn-upd-dl">Descargar Actualización</button>
+      <div id="upd-progress-wrap" style="display:none;flex-direction:column;gap:6px;margin-top:4px">
+        <div class="bar-track" style="height:10px"><div class="bar-fill" id="upd-progress-fill" style="width:0%"></div></div>
+        <div id="upd-progress-text" style="font-size:11.5px;color:var(--subtext)">Preparando descarga...</div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px">
+        <button class="btn-primary-accent" id="btn-upd-dl">${isExe ? "🚀 Actualizar Ahora" : "📥 Descargar desde la Web"}</button>
+        ${isExe ? `<button type="button" class="btn-ghost" id="btn-upd-web">🌐 Abrir en Web</button>` : ""}
+      </div>
     `;
-    document.getElementById("btn-upd-dl")?.addEventListener("click", () => {
-      window.pywebview.api.open_external_url(res.url);
+
+    document.getElementById("btn-upd-web")?.addEventListener("click", () => {
+      window.pywebview.api.open_external_url(res.fallback_url || "https://github.com/Patoma89/SteamScope/releases");
+    });
+
+    document.getElementById("btn-upd-dl")?.addEventListener("click", async (e) => {
+      if (!isExe) {
+        window.pywebview.api.open_external_url(res.url);
+        return;
+      }
+      const btn = e.currentTarget;
+      const wrap = document.getElementById("upd-progress-wrap");
+      const fill = document.getElementById("upd-progress-fill");
+      const txt = document.getElementById("upd-progress-text");
+      btn.disabled = true;
+      btn.textContent = "⏳ Descargando...";
+      if (wrap) wrap.style.display = "flex";
+
+      const startRes = await window.pywebview.api.download_and_install_update(res.url);
+      if (!startRes?.ok) {
+        if (txt) txt.textContent = `⚠️ ${startRes?.error || "No se pudo iniciar la descarga."}`;
+        btn.disabled = false;
+        btn.textContent = "🚀 Reintentar Actualización";
+        return;
+      }
+
+      const pollId = setInterval(async () => {
+        if (!fill || !document.body.contains(fill)) {
+          clearInterval(pollId);
+          return;
+        }
+        const prog = await window.pywebview.api.get_update_progress();
+        const pct = Math.max(0, Math.min(100, Number(prog?.pct || 0)));
+        fill.style.width = `${pct}%`;
+        if (prog?.error) {
+          clearInterval(pollId);
+          if (txt) txt.textContent = `⚠️ ${prog.error}`;
+          btn.disabled = false;
+          btn.textContent = "🚀 Reintentar Actualización";
+          return;
+        }
+        if (prog?.done) {
+          clearInterval(pollId);
+          fill.style.width = "100%";
+          if (txt) txt.textContent = "✅ Instalando actualización... SteamScope se reiniciará automáticamente.";
+          btn.textContent = "🔄 Instalando...";
+          return;
+        }
+        if (txt) txt.textContent = `${prog?.status || "Descargando instalador..."} (${Math.round(pct)}%)`;
+      }, 250);
     });
   } else {
     body.innerHTML = `

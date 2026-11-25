@@ -8,7 +8,7 @@ de core/ y la base SQLite sin riesgo de regresión.
 import logging
 import os
 import sys
-from typing import Optional
+from typing import Callable, Optional
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
@@ -84,7 +84,13 @@ def main() -> int:
             pass
         return None
 
-    api = SteamScopeWebAPI(db=db, on_toggle_topmost=_set_topmost, on_save_dialog=_save_dialog)
+    quit_holder: list[Optional[Callable[[], None]]] = [None]
+    api = SteamScopeWebAPI(
+        db=db,
+        on_toggle_topmost=_set_topmost,
+        on_save_dialog=_save_dialog,
+        on_quit=lambda: quit_holder[0]() if quit_holder[0] is not None else None,
+    )
 
     window = webview.create_window(
         title=f"⚡ SteamScope 3.0 NEXT (v{APP_VERSION}) | by Patoma89",
@@ -149,6 +155,8 @@ def main() -> int:
                 win.destroy()
             except Exception:
                 pass
+
+    quit_holder[0] = _quit_app
 
     tray = TrayV3Manager(
         on_show=_show_window,
