@@ -20,13 +20,14 @@ AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
 
 ; Actualización limpia sobre la carpeta existente
-PrivilegesRequired=lowest
+PrivilegesRequired=admin
 DefaultDirName={autopf}\{#MyAppName}
 UsePreviousAppDir=yes
 DisableDirPage=auto
 DefaultGroupName={#MyAppName}
 UsePreviousGroup=yes
 DisableProgramGroupPage=auto
+UsePreviousTasks=yes
 AllowNoIcons=yes
 
 ; Configuración del instalador final
@@ -54,13 +55,16 @@ Type: filesandordirs; Name: "{app}\_internal"
 Source: "dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "icono.ico"; DestDir: "{app}"; Flags: ignoreversion
 
+[Tasks]
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
+
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\icono.ico"; WorkingDir: "{app}"
-Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\icono.ico"; WorkingDir: "{app}"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\icono.ico"; WorkingDir: "{app}"; Tasks: desktopicon
 Name: "{group}\Desinstalar {#MyAppName}"; Filename: "{uninstallexe}"
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "Ejecutar SteamScope 3.0 NEXT al finalizar"; Flags: nowait postinstall
+Filename: "{app}\{#MyAppExeName}"; Description: "Ejecutar SteamScope 3.0 NEXT al finalizar"; Flags: nowait postinstall runasoriginaluser
 
 [Code]
 // Limpieza de variables de entorno heredadas de PyInstaller (_MEIPASS2 / _PYI_*)
@@ -91,8 +95,8 @@ var
   UninstCmd: String;
   ResultCode: Integer;
 begin
-  if RegQueryStringValue(RootKey, SubKey, 'QuietUninstallString', UninstCmd) or
-     RegQueryStringValue(RootKey, SubKey, 'UninstallString', UninstCmd) then
+  if RegQueryStringValue(RootKey, SubKey, 'UninstallString', UninstCmd) or
+     RegQueryStringValue(RootKey, SubKey, 'QuietUninstallString', UninstCmd) then
   begin
     UninstCmd := RemoveQuotes(UninstCmd);
     if FileExists(UninstCmd) then
@@ -114,6 +118,7 @@ begin
 
   DesinstalarVersionHeredada(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\SteamScope_is1');
   DesinstalarVersionHeredada(HKLM, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\SteamScope_is1');
+  DesinstalarVersionHeredada(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{D37E88E4-7E4A-4A7B-943E-2A4F9F24A5D1}_is1');
 
   Result := '';
 end;
