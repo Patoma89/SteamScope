@@ -2,6 +2,7 @@ import os
 import re
 import html
 import time
+import ctypes
 import shutil
 import random
 import tempfile
@@ -942,14 +943,15 @@ class DialogoActualizador(ctk.CTkToplevel):
         threading.Thread(target=self._hilo_descargar_instalador, args=(url_exe,), daemon=True).start()
 
     def _hilo_descargar_instalador(self, url_exe):
+        destino = os.path.join(tempfile.gettempdir(), "SteamScope_Update_Setup.exe")
+        part_path = f"{destino}.part"
         try:
             r = HTTP_SESSION.get(url_exe, stream=True, timeout=15)
             if r.status_code != 200:
                 raise Exception(f"El instalador aún no está disponible en GitHub Releases (código HTTP {r.status_code}).")
             total_len = int(r.headers.get('content-length', 0))
-            destino = os.path.join(tempfile.gettempdir(), "SteamScope_Update_Setup.exe")
             descargado = 0
-            with open(destino, 'wb') as f:
+            with open(part_path, 'wb') as f:
                 for chunk in r.iter_content(chunk_size=65536):
                     if chunk:
                         f.write(chunk)
@@ -961,16 +963,18 @@ class DialogoActualizador(ctk.CTkToplevel):
             # Validar que sea un ejecutable de Windows real (encabezado PE 'MZ' y tamaño mínimo > 1 MB)
             if descargado < 1024 * 1024:
                 try:
-                    if os.path.exists(destino): os.remove(destino)
+                    if os.path.exists(part_path): os.remove(part_path)
                 except Exception: pass
                 raise Exception("El archivo descargado está incompleto o no es un instalador válido.")
 
-            with open(destino, "rb") as f_chk:
+            with open(part_path, "rb") as f_chk:
                 if f_chk.read(2) != b"MZ":
                     try:
-                        if os.path.exists(destino): os.remove(destino)
+                        if os.path.exists(part_path): os.remove(part_path)
                     except Exception: pass
                     raise Exception("El archivo descargado no es un ejecutable válido.")
+
+            os.replace(part_path, destino)
 
             self.after(0, lambda: self._escribir_info("✅ Descarga completada. Ejecutando el instalador..."))
             time.sleep(1.2)
@@ -985,15 +989,35 @@ class DialogoActualizador(ctk.CTkToplevel):
 
             DETACHED_PROCESS = 0x00000008
             CREATE_NEW_PROCESS_GROUP = 0x00000200
-            subprocess.Popen(
-                [destino, "/SILENT"],
-                env=clean_env,
-                creationflags=DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP,
-                close_fds=True
-            )
+            try:
+                subprocess.Popen(
+                    [destino, "/SILENT"],
+                    env=clean_env,
+                    creationflags=DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP,
+                    close_fds=True
+                )
+            except OSError as popen_err:
+                if getattr(popen_err, "winerror", None) == 740:
+                    rc = int(ctypes.windll.shell32.ShellExecuteW(
+                        None,
+                        "runas",
+                        destino,
+                        "/SILENT",
+                        os.path.dirname(destino) or None,
+                        1,
+                    ))
+                    if rc <= 32:
+                        raise Exception("Se canceló o rechazó la elevación de permisos (UAC) para instalar la actualización.")
+                else:
+                    raise
             time.sleep(0.5)
             self.parent_app.tray.salir_completo()
         except Exception as e:
+            try:
+                if os.path.exists(part_path):
+                    os.remove(part_path)
+            except Exception:
+                pass
             self.after(0, lambda err=str(e): mostrar_alerta_skin(self, "Error", f"No se pudo descargar automáticamente:\n{err}", tipo="error"))
             webbrowser.open(url_exe)
 

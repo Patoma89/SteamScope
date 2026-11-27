@@ -9,16 +9,18 @@ import logging
 import os
 import sys
 import traceback
-from typing import Optional
+from typing import Callable, Optional
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
-from core.config import APP_VERSION, obtener_ruta_appdata
+from core.config import APP_NAME, APP_VERSION, obtener_ruta_appdata
 from core.database import DatabaseManager
 from core.gamepad import GamepadManager
-from web_bridge import SteamScopeWebAPI, start_local_server
+from core.pricing import notificar_windows
+from core.watchdog import WatchlistWatchdog
+from web_bridge import SteamScopeWebAPI, TrayV3Manager, start_local_server
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("SteamScope.WebUI")
@@ -89,7 +91,13 @@ def _run_app() -> int:
             pass
         return None
 
-    api = SteamScopeWebAPI(db=db, on_toggle_topmost=_set_topmost, on_save_dialog=_save_dialog)
+    quit_holder: list[Optional[Callable[[], None]]] = [None]
+    api = SteamScopeWebAPI(
+        db=db,
+        on_toggle_topmost=_set_topmost,
+        on_save_dialog=_save_dialog,
+        on_quit=lambda: quit_holder[0]() if quit_holder[0] is not None else None,
+    )
 
     window = webview.create_window(
         title=f"⚡ SteamScope 3.0 NEXT (v{APP_VERSION}) | by Patoma89",
@@ -120,7 +128,70 @@ def _run_app() -> int:
             f"window.SteamScopeGamepad && window.SteamScopeGamepad.onConnection({'true' if conn else 'false'})"
         ),
     })
+
+    watchdog = WatchlistWatchdog(
+        db=db,
+        config=api.config,
+        api_client=api.api_client,
+        sfx=api.sfx,
+        on_alerts_updated=lambda: _emit_js(
+            "window.SteamScopeUI && window.SteamScopeUI.refreshCommandCenter && window.SteamScopeUI.refreshCommandCenter()"
+        ),
+    )
+
+    def _show_window() -> None:
+        win = window_holder[0]
+        if win is not None:
+            try:
+                win.show()
+                win.restore()
+            except Exception:
+                pass
+
+    def _open_events() -> None:
+        _show_window()
+        _emit_js("window.SteamScopeUI && window.SteamScopeUI.navigateTo && window.SteamScopeUI.navigateTo('events')")
+
+    def _quit_app() -> None:
+        watchdog.stop()
+        tray.stop()
+        gamepad.stop()
+        win = window_holder[0]
+        if win is not None:
+            try:
+                win.destroy()
+            except Exception:
+                pass
+
+    quit_holder[0] = _quit_app
+
+    tray = TrayV3Manager(
+        on_show=_show_window,
+        on_check_now=watchdog.trigger_now,
+        on_quit=_quit_app,
+        on_open_events=_open_events,
+    )
+
+    def _on_minimized(*_args, **_kwargs) -> None:
+        win = window_holder[0]
+        if win is not None and api.config.datos.get("minimizar_a") == "Bandeja" and tray.is_running:
+            try:
+                win.hide()
+                notificar_windows(
+                    f"{APP_NAME} minimizado",
+                    "Monitoreando rebajas y récords históricos en segundo plano.",
+                )
+            except Exception:
+                pass
+
+    try:
+        window.events.minimized += _on_minimized
+    except Exception:
+        pass
+
     gamepad.start()
+    watchdog.start()
+    tray.start()
 
     wv_cache_dir = os.path.join(cache_dir, "webview2_cache")
     os.makedirs(wv_cache_dir, exist_ok=True)
@@ -132,6 +203,8 @@ def _run_app() -> int:
             storage_path=wv_cache_dir,
         )
     finally:
+        watchdog.stop()
+        tray.stop()
         gamepad.stop()
         httpd.shutdown()
     return 0

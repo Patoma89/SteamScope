@@ -31,6 +31,9 @@ UsePreviousGroup=yes
 DisableProgramGroupPage=auto
 UsePreviousTasks=yes
 AllowNoIcons=yes
+DirExistsWarning=no
+CloseApplications=yes
+CloseApplicationsFilter={#MyAppExeName}
 
 ; Configuración del instalador final
 OutputDir=Output
@@ -95,20 +98,116 @@ begin
   Result := True;
 end;
 
-// Desinstalación silenciosa de versiones heredadas que usaban el AppId antiguo
+function NormalizeDir(const S: String): String;
+begin
+  Result := LowerCase(RemoveBackslashUnlessRoot(Trim(RemoveQuotes(S))));
+end;
+
+function IsInsideTempPath(const DirPath: String): Boolean;
+var
+  NormDir, Temp1, Temp2: String;
+begin
+  Result := False;
+  NormDir := NormalizeDir(DirPath);
+  if NormDir = '' then
+    Exit;
+  Temp1 := NormalizeDir(GetTempDir());
+  Temp2 := NormalizeDir(ExpandConstant('{localappdata}\Temp'));
+  if (NormDir = Temp1) or (Pos(Temp1 + '\', NormDir) = 1) or
+     (NormDir = Temp2) or (Pos(Temp2 + '\', NormDir) = 1) or
+     (Pos('\appdata\local\temp\', NormDir + '\') > 0) then
+    Result := True;
+end;
+
+function ExtractExePath(const Cmd: String): String;
+var
+  S: String;
+  P: Integer;
+begin
+  S := Trim(Cmd);
+  if S = '' then
+  begin
+    Result := '';
+    Exit;
+  end;
+  if S[1] = '"' then
+  begin
+    Delete(S, 1, 1);
+    P := Pos('"', S);
+    if P > 0 then
+      S := Copy(S, 1, P - 1);
+  end
+  else
+  begin
+    P := Pos('.exe', LowerCase(S));
+    if P > 0 then
+      S := Copy(S, 1, P + 3);
+  end;
+  Result := Trim(S);
+end;
+
+function NextButtonClick(CurPageID: Integer): Boolean;
+begin
+  Result := True;
+  if CurPageID = wpSelectDir then
+  begin
+    if IsInsideTempPath(WizardDirValue) then
+    begin
+      MsgBox('No se puede instalar SteamScope dentro de la carpeta temporal (Temp). Elegí una carpeta permanente.', mbError, MB_OK);
+      Result := False;
+    end;
+  end;
+end;
+
+// Desinstalación silenciosa de versiones heredadas o huérfanas
 procedure DesinstalarVersionHeredada(RootKey: Integer; SubKey: String);
 var
-  UninstCmd: String;
+  UninstCmd, UninstExe: String;
   ResultCode: Integer;
 begin
+  if not RegKeyExists(RootKey, SubKey) then
+    Exit;
+
   if RegQueryStringValue(RootKey, SubKey, 'UninstallString', UninstCmd) or
      RegQueryStringValue(RootKey, SubKey, 'QuietUninstallString', UninstCmd) then
   begin
-    UninstCmd := RemoveQuotes(UninstCmd);
-    if FileExists(UninstCmd) then
+    UninstExe := ExtractExePath(UninstCmd);
+    if (UninstExe <> '') and FileExists(UninstExe) then
     begin
-      Exec(UninstCmd, '/SILENT /VERYSILENT /SUPPRESSMSGBOXES /NORESTART', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+      Exec(UninstExe, '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    end
+    else
+    begin
+      RegDeleteKeyIncludingSubkeys(RootKey, SubKey);
     end;
+  end;
+end;
+
+// Limpia restos per-user de v2.0.1 y accesos directos obsoletos para evitar bucles
+procedure LimpiarInstalacionPerUserResidual();
+var
+  PerUserDir, TargetDir, UserDesktopLnk, UserGroupDir: String;
+begin
+  PerUserDir := ExpandConstant('{localappdata}\Programs\{#MyAppName}');
+  TargetDir := ExpandConstant('{app}');
+  if (NormalizeDir(PerUserDir) <> NormalizeDir(TargetDir)) and
+     DirExists(PerUserDir) and FileExists(PerUserDir + '\{#MyAppExeName}') then
+  begin
+    DelTree(PerUserDir, True, True, True);
+  end;
+
+  UserDesktopLnk := ExpandConstant('{userdesktop}\{#MyAppName}.lnk');
+  if (NormalizeDir(ExpandConstant('{userdesktop}')) <> NormalizeDir(ExpandConstant('{autodesktop}'))) and
+     FileExists(UserDesktopLnk) then
+  begin
+    DeleteFile(UserDesktopLnk);
+  end;
+
+  UserGroupDir := ExpandConstant('{userprograms}\{#MyAppName}');
+  if (NormalizeDir(UserGroupDir) <> NormalizeDir(ExpandConstant('{group}'))) and
+     DirExists(UserGroupDir) then
+  begin
+    DelTree(UserGroupDir, True, True, True);
   end;
 end;
 
@@ -119,14 +218,16 @@ var
 begin
   LimpiarEntornoPyInstaller();
 
-  // 1. Cerrar procesos activos de SteamScope para liberar archivos bloqueados
-  Exec('taskkill.exe', '/F /IM SteamScope.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-  Sleep(600);
+  // Esperar brevemente a que SteamScope cierre solo y cerrar sin /T para no matar este instalador
+  Sleep(500);
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM {#MyAppExeName}', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Sleep(500);
 
-  // 2. Limpiar versiones antiguas que se hayan instalado con nombres o IDs previos
+  // Limpiar versiones antiguas que se hayan instalado con nombres o IDs previos
   DesinstalarVersionHeredada(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\SteamScope_is1');
   DesinstalarVersionHeredada(HKLM, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\SteamScope_is1');
   DesinstalarVersionHeredada(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{D37E88E4-7E4A-4A7B-943E-2A4F9F24A5D1}_is1');
+  LimpiarInstalacionPerUserResidual();
 
   Result := '';
 end;

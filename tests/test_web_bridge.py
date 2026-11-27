@@ -865,6 +865,76 @@ class TestWebBridge(unittest.TestCase):
         mock_popen.assert_not_called()
         self.assertEqual(len(quit_calls), 0)
 
+    @patch("web_bridge.api.time.sleep")
+    @patch("web_bridge.api.sys.platform", "win32")
+    @patch.object(SteamScopeWebAPI, "_shell_execute_runas", return_value=42)
+    @patch("web_bridge.api.subprocess.Popen")
+    @patch("web_bridge.api.HTTP_SESSION.get")
+    def test_download_and_install_update_elevates_on_winerror_740(
+        self, mock_get, mock_popen, mock_runas, _mock_sleep
+    ):
+        quit_calls = []
+        api_with_quit = SteamScopeWebAPI(
+            db=self.db,
+            config=self.cfg,
+            sfx=_SilentSFX(),
+            on_quit=lambda: quit_calls.append(True),
+        )
+        pe_bytes = b"MZ" + (b"\x00" * (1024 * 1024 + 64))
+        mock_resp = MagicMock(status_code=200)
+        mock_resp.headers = {"content-length": str(len(pe_bytes))}
+        mock_resp.iter_content.return_value = [pe_bytes]
+        mock_get.return_value = mock_resp
+
+        err_740 = OSError("The requested operation requires elevation")
+        err_740.winerror = 740
+        mock_popen.side_effect = err_740
+
+        api_with_quit._run_update_download("https://github.com/Patoma89/SteamScope/releases/download/v3.0.1/SteamScope_v3.0.1_Setup.exe")
+
+        prog = api_with_quit.get_update_progress()
+        self.assertTrue(prog["done"])
+        self.assertEqual(prog["error"], "")
+        self.assertAlmostEqual(prog["pct"], 100.0)
+        self.assertEqual(len(quit_calls), 1)
+        mock_runas.assert_called_once()
+        exe_arg, params_arg = mock_runas.call_args[0]
+        self.assertTrue(exe_arg.endswith("SteamScope_Update_Setup.exe"))
+        self.assertEqual(params_arg, "/SILENT")
+
+    @patch("web_bridge.api.sys.platform", "win32")
+    @patch.object(SteamScopeWebAPI, "_shell_execute_runas", return_value=5)
+    @patch("web_bridge.api.subprocess.Popen")
+    @patch("web_bridge.api.HTTP_SESSION.get")
+    def test_download_and_install_update_handles_uac_cancelled(
+        self, mock_get, mock_popen, mock_runas
+    ):
+        quit_calls = []
+        api_with_quit = SteamScopeWebAPI(
+            db=self.db,
+            config=self.cfg,
+            sfx=_SilentSFX(),
+            on_quit=lambda: quit_calls.append(True),
+        )
+        pe_bytes = b"MZ" + (b"\x00" * (1024 * 1024 + 64))
+        mock_resp = MagicMock(status_code=200)
+        mock_resp.headers = {"content-length": str(len(pe_bytes))}
+        mock_resp.iter_content.return_value = [pe_bytes]
+        mock_get.return_value = mock_resp
+
+        err_740 = OSError("The requested operation requires elevation")
+        err_740.winerror = 740
+        mock_popen.side_effect = err_740
+
+        api_with_quit._run_update_download("https://github.com/Patoma89/SteamScope/releases/download/v3.0.1/SteamScope_v3.0.1_Setup.exe")
+
+        prog = api_with_quit.get_update_progress()
+        self.assertFalse(prog["done"])
+        self.assertFalse(prog["running"])
+        self.assertIn("UAC", prog["error"])
+        self.assertEqual(len(quit_calls), 0)
+        mock_runas.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()

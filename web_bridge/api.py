@@ -2,6 +2,7 @@
 Puente Backend JSON puro para SteamScope 3.0 NEXT (Edge WebView2 + pywebview).
 Consume exclusivamente la capa core/ sin importar Tkinter, CustomTkinter ni pywebview.
 """
+import ctypes
 import os
 import subprocess
 import sys
@@ -517,8 +518,47 @@ class SteamScopeWebAPI(WebAPIDealsMixin, WebAPIFichaMixin, WebAPIAccountMixin, W
         threading.Thread(target=self._run_update_download, args=(url,), daemon=True).start()
         return {"ok": True, "started": True}
 
+    def _shell_execute_runas(self, exe_path: str, params: str) -> int:
+        """Lanza un ejecutable solicitando elevación UAC mediante ShellExecuteW."""
+        return int(
+            ctypes.windll.shell32.ShellExecuteW(
+                None,
+                "runas",
+                exe_path,
+                params,
+                os.path.dirname(exe_path) or None,
+                1,
+            )
+        )
+
+    def _launch_installer_executable(
+        self, destino: str, clean_env: Dict[str, str], args: str = "/SILENT"
+    ) -> None:
+        """Ejecuta el instalador con entorno sanitizado y fallback UAC ante WinError 740."""
+        creationflags = 0
+        if sys.platform.startswith("win"):
+            creationflags = 0x00000008 | 0x00000200  # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
+
+        try:
+            subprocess.Popen(
+                [destino, args],
+                env=clean_env,
+                creationflags=creationflags,
+                close_fds=True,
+            )
+        except OSError as exc:
+            if sys.platform.startswith("win") and getattr(exc, "winerror", None) == 740:
+                rc = self._shell_execute_runas(destino, args)
+                if rc <= 32:
+                    raise RuntimeError(
+                        "Se canceló o rechazó la elevación de permisos (UAC) para instalar la actualización."
+                    )
+                return
+            raise
+
     def _run_update_download(self, url_exe: str) -> None:
         destino = os.path.join(tempfile.gettempdir(), "SteamScope_Update_Setup.exe")
+        part_path = f"{destino}.part"
         try:
             r = HTTP_SESSION.get(url_exe, stream=True, timeout=20)
             if r.status_code != 200:
@@ -526,7 +566,7 @@ class SteamScopeWebAPI(WebAPIDealsMixin, WebAPIFichaMixin, WebAPIAccountMixin, W
 
             total_len = int(r.headers.get("content-length", 0) or 0)
             descargado = 0
-            with open(destino, "wb") as f:
+            with open(part_path, "wb") as f:
                 for chunk in r.iter_content(chunk_size=65536):
                     if not chunk:
                         continue
@@ -538,36 +578,29 @@ class SteamScopeWebAPI(WebAPIDealsMixin, WebAPIFichaMixin, WebAPIAccountMixin, W
 
             if descargado < 1024 * 1024:
                 try:
-                    if os.path.exists(destino):
-                        os.remove(destino)
+                    if os.path.exists(part_path):
+                        os.remove(part_path)
                 except OSError:
                     pass
                 raise RuntimeError("El archivo descargado está incompleto o no es un instalador válido.")
 
-            with open(destino, "rb") as f_chk:
+            with open(part_path, "rb") as f_chk:
                 if f_chk.read(2) != b"MZ":
                     try:
-                        if os.path.exists(destino):
-                            os.remove(destino)
+                        if os.path.exists(part_path):
+                            os.remove(part_path)
                     except OSError:
                         pass
                     raise RuntimeError("El archivo descargado no es un ejecutable válido de Windows.")
+
+            os.replace(part_path, destino)
 
             clean_env = os.environ.copy()
             for k in list(clean_env.keys()):
                 if "_MEI" in k or k.startswith("_PYI_") or k.startswith("PYTHON"):
                     clean_env.pop(k, None)
 
-            creationflags = 0
-            if sys.platform.startswith("win"):
-                creationflags = 0x00000008 | 0x00000200  # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
-
-            subprocess.Popen(
-                [destino, "/SILENT"],
-                env=clean_env,
-                creationflags=creationflags,
-                close_fds=True,
-            )
+            self._launch_installer_executable(destino, clean_env, "/SILENT")
 
             self._set_update_state(pct=100.0, status="Instalando actualización...", done=True, running=False)
             time.sleep(0.6)
@@ -577,6 +610,11 @@ class SteamScopeWebAPI(WebAPIDealsMixin, WebAPIFichaMixin, WebAPIAccountMixin, W
                 except Exception:
                     pass
         except Exception as exc:
+            try:
+                if os.path.exists(part_path):
+                    os.remove(part_path)
+            except OSError:
+                pass
             self._set_update_state(running=False, done=False, error=str(exc), status="Error al actualizar")
 
     def open_external_url(self, url: str) -> Dict[str, Any]:
