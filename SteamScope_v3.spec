@@ -8,12 +8,21 @@ datas = [
     ('web_ui', 'web_ui'),
 ]
 binaries = []
-hiddenimports = ['pystray._win32']
+hiddenimports = [
+    'pystray._win32',
+    'webview.platforms.edgechromium',
+    'webview.platforms.winforms',
+    'clr',
+]
 
-tmp_ret = collect_all('webview')
-datas += tmp_ret[0]
-binaries += tmp_ret[1]
-hiddenimports += tmp_ret[2]
+for _pkg in ('webview', 'pythonnet', 'clr_loader'):
+    try:
+        tmp_ret = collect_all(_pkg)
+        datas += tmp_ret[0]
+        binaries += tmp_ret[1]
+        hiddenimports += tmp_ret[2]
+    except Exception:
+        pass
 
 
 a = Analysis(

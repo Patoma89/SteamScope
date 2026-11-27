@@ -23,7 +23,13 @@ echo [1/3] Verificando PyInstaller y pywebview...
 "%PY_CMD%" -m pip install --upgrade pyinstaller pywebview --quiet
 
 echo [2/3] Compilando dist\SteamScope.exe desde SteamScope_v3.spec...
+if exist "dist\SteamScope.exe" del /f /q "dist\SteamScope.exe"
 "%PY_CMD%" -m PyInstaller --noconfirm --clean SteamScope_v3.spec
+if errorlevel 1 (
+    echo [!] Error critico: PyInstaller fallo al generar dist\SteamScope.exe.
+    pause
+    exit /b 1
+)
 
 echo.
 if exist "dist\SteamScope.exe" (
@@ -35,6 +41,11 @@ if exist "dist\SteamScope.exe" (
     ) else (
         echo [AVISO] No se encontro Inno Setup ISCC.exe; dist\SteamScope.exe generado igualmente.
     )
+    if errorlevel 1 (
+        echo [!] Error critico: Inno Setup fallo al generar el instalador.
+        pause
+        exit /b 1
+    )
     echo ========================================================
     echo   EXITO!
     echo   - Instalador Setup: Output\SteamScope_v3.0.0_Setup.exe
@@ -43,5 +54,7 @@ if exist "dist\SteamScope.exe" (
     if exist "Output" explorer Output
 ) else (
     echo [!] Hubo un problema al compilar. Revisa los mensajes de arriba.
+    pause
+    exit /b 1
 )
 pause

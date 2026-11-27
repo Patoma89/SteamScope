@@ -8,6 +8,7 @@ de core/ y la base SQLite sin riesgo de regresión.
 import logging
 import os
 import sys
+import traceback
 from typing import Optional
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -28,6 +29,10 @@ def _resolve_web_ui_dir() -> str:
         cand = os.path.join(sys._MEIPASS, "web_ui")
         if os.path.isdir(cand):
             return cand
+    if getattr(sys, "frozen", False):
+        cand_exe = os.path.join(os.path.dirname(os.path.abspath(sys.executable)), "web_ui")
+        if os.path.isdir(cand_exe):
+            return cand_exe
     return os.path.join(current_dir, "web_ui")
 
 
@@ -40,7 +45,7 @@ def _register_windows_appid() -> None:
             pass
 
 
-def main() -> int:
+def _run_app() -> int:
     try:
         import webview
     except ImportError:
@@ -55,6 +60,8 @@ def main() -> int:
     db = DatabaseManager()
 
     web_ui_dir = _resolve_web_ui_dir()
+    if not os.path.isdir(web_ui_dir):
+        raise FileNotFoundError(f"No se encontró el directorio web_ui en: {web_ui_dir}")
     cache_dir = os.path.join(obtener_ruta_appdata(), "cache")
     httpd, url = start_local_server(web_ui_dir, cache_dir=cache_dir)
 
@@ -128,6 +135,24 @@ def main() -> int:
         gamepad.stop()
         httpd.shutdown()
     return 0
+
+
+def main() -> int:
+    try:
+        return _run_app()
+    except Exception:
+        tb = traceback.format_exc()
+        logger.exception("Error fatal al iniciar SteamScope 3.0 NEXT")
+        try:
+            log_dir = obtener_ruta_appdata()
+            os.makedirs(log_dir, exist_ok=True)
+            log_path = os.path.join(log_dir, "crash_v3.log")
+            with open(log_path, "w", encoding="utf-8") as fh:
+                fh.write(tb)
+        except Exception:
+            pass
+        print(tb)
+        return 1
 
 
 if __name__ == "__main__":
