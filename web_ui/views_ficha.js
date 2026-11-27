@@ -109,7 +109,7 @@
 
     body.innerHTML = `
       <div class="ficha-top-grid">
-        <img class="ficha-poster" src="${esc(data.poster_url)}" alt="${esc(data.titulo)}" onerror="this.src='${esc(data.header_image)}'" />
+        <img class="ficha-poster" src="${esc(data.poster_url)}" alt="${esc(data.titulo)}" onerror="if(!this.dataset.triedHdr){this.dataset.triedHdr='1';this.src='${esc(data.header_image)}';}else{window.SteamScopeUI.handleSteamImgError(this,'${esc(data.appid)}',this.alt);}" />
         <div class="ficha-head-info">
           <div class="deal-badges-row">
             ${data.atl?.is_atl_now ? `<span class="d-badge atl">⭐ MÍNIMO HISTÓRICO (ATL)</span>` : ""}
@@ -493,14 +493,14 @@
 
       <div class="versus-grid">
         <div class="glass-card versus-card ${res.winner === "A" ? "winner" : ""}">
-          <img class="versus-cover" src="${esc(a.header_image)}" alt="${esc(a.titulo)}" />
+          <img class="versus-cover" src="${esc(a.header_image)}" alt="${esc(a.titulo)}" onerror="window.SteamScopeUI.handleSteamImgError(this, '${esc(a.appid)}', this.alt)" />
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
             <strong>${res.winner === "A" ? "🏆 " : ""}${esc(a.titulo)}</strong>
             <button type="button" class="btn-ghost" id="btn-vs-ficha-a">Ver Ficha</button>
           </div>
         </div>
         <div class="glass-card versus-card ${res.winner === "B" ? "winner" : ""}">
-          <img class="versus-cover" src="${esc(b.header_image)}" alt="${esc(b.titulo)}" />
+          <img class="versus-cover" src="${esc(b.header_image)}" alt="${esc(b.titulo)}" onerror="window.SteamScopeUI.handleSteamImgError(this, '${esc(b.appid)}', this.alt)" />
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
             <strong>${res.winner === "B" ? "🏆 " : ""}${esc(b.titulo)}</strong>
             <button type="button" class="btn-ghost" id="btn-vs-ficha-b">Ver Ficha</button>

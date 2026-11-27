@@ -77,6 +77,9 @@ class WebAPIAccountMixin:
             })
 
         total_usd = round(sum(it["precio_oferta_usd"] for it in items_out), 2)
+        wl_covers = self.db.get_cover_urls_batch([it["appid"] for it in items_out]) or {}
+        for it in items_out:
+            it["cover_url"] = wl_covers.get(it["appid"], "")
         return {
             "ok": True,
             "items": items_out,
@@ -267,7 +270,12 @@ class WebAPIAccountMixin:
     # ================= RÉCORDS ATL =================
     def get_atl_history(self, limite: int = 100) -> Dict[str, Any]:
         """Devuelve el historial de mínimos históricos capturados."""
-        items = self.db.obtener_alertas_atl(limite=int(limite or 100)) or []
+        raw_items = self.db.obtener_alertas_atl(limite=int(limite or 100)) or []
+        covers = self.db.get_cover_urls_batch([a.get("appid") for a in raw_items]) or {}
+        items = [
+            {**a, "cover_url": covers.get(str(a.get("appid", "")), "")}
+            for a in raw_items
+        ]
         return {"ok": True, "count": len(items), "items": items}
 
     def clear_atl_history(self) -> Dict[str, Any]:
@@ -339,10 +347,14 @@ class WebAPIAccountMixin:
         total_pages = max(1, math.ceil(total_filtered / per_page))
         page = max(1, min(total_pages, int(p.get("page", 1) or 1)))
         start = (page - 1) * per_page
+        page_items = filtrados[start:start + per_page]
+        covers = self.db.get_cover_urls_batch([g.get("appid") for g in page_items]) or {}
+        for g in page_items:
+            g["cover_url"] = covers.get(str(g.get("appid", "")), "")
 
         return {
             "ok": True,
-            "items": filtrados[start:start + per_page],
+            "items": page_items,
             "total_filtered": total_filtered,
             "page": page,
             "total_pages": total_pages,

@@ -5,8 +5,8 @@ echo   EMPAQUETANDO STEAMSCOPE v2.0.1 EN EJECUTABLE (.EXE)
 echo ========================================================
 echo.
 
-if exist "C:\Users\INFORMES1\AppData\Local\Python\pythoncore-3.14-64\python.exe" (
-    set "PY_CMD=C:\Users\INFORMES1\AppData\Local\Python\pythoncore-3.14-64\python.exe"
+if exist "%LOCALAPPDATA%\Python\pythoncore-3.14-64\python.exe" (
+    set "PY_CMD=%LOCALAPPDATA%\Python\pythoncore-3.14-64\python.exe"
 ) else (
     where py >nul 2>nul
     if %errorlevel%==0 (
@@ -30,13 +30,13 @@ echo.
 if exist "dist\SteamScope.exe" (
     echo [3/3] Generando Instalador Setup con Inno Setup...
     if exist "C:\Program Files\Inno Setup 7\ISCC.exe" (
-        "C:\Program Files\Inno Setup 7\ISCC.exe" "Newnew.iss"
+        "C:\Program Files\Inno Setup 7\ISCC.exe" /DMyAppVersion=2.0.1-legacy "Newnew.iss"
     ) else if exist "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" (
-        "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "Newnew.iss"
+        "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=2.0.1-legacy "Newnew.iss"
     )
     echo ========================================================
     echo   EXITO!
-    echo   - Instalador Auto-Update: Output\SteamScope_v2.0.1_Setup.exe
+    echo   - Instalador Auto-Update: Output\SteamScope_v2.0.1-legacy_Setup.exe
     echo   - Ejecutable base:        dist\SteamScope.exe
     echo ========================================================
     explorer Output

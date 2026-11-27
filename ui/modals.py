@@ -980,7 +980,7 @@ class DialogoActualizador(ctk.CTkToplevel):
             # cargar DLLs desde el directorio temporal del proceso que se está cerrando.
             clean_env = os.environ.copy()
             for k in list(clean_env.keys()):
-                if "_MEI" in k or k.startswith("PYTHON"):
+                if "_MEI" in k or k.startswith("_PYI_") or k.startswith("PYTHON"):
                     clean_env.pop(k, None)
 
             DETACHED_PROCESS = 0x00000008

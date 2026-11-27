@@ -1,5 +1,5 @@
 """
-Módulo de Notificaciones Enriquecidas de Windows 10/11 para SteamScope 2.0 (SRP / Core Puro).
+Módulo de Notificaciones Enriquecidas de Windows 10/11 para SteamScope (SRP / Core Puro).
 Genera alertas Toast nativas interactivas con imagen en alta definición, desglose en ARS
 y botones directos de acción (protocolo web para evitar impuestos).
 """

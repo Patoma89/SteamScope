@@ -138,7 +138,7 @@
           const isEditing = accState.wl.editingAppId === String(it.appid);
           return `
             <article class="deal-card-item ${it.es_atl ? "is-atl" : ""}" data-appid="${esc(it.appid)}">
-              <img class="deal-cover" src="${esc(it.header_url)}" alt="${esc(it.titulo)}" loading="lazy" onerror="this.src='${esc(it.thumb_url)}'" />
+              <img class="deal-cover" src="${esc(ui().steamCoverUrl(it.appid, it.cover_url))}" alt="${esc(it.titulo)}" loading="lazy" onerror="window.SteamScopeUI.handleSteamImgError(this, '${esc(it.appid)}', this.alt)" />
               <div class="deal-body">
                 <div class="deal-badges-row">
                   ${it.es_atl ? `<span class="d-badge atl">⭐ RÉCORD ATL</span>` : ""}
@@ -276,8 +276,8 @@
     container.innerHTML = `
       <div class="deals-header">
         <div>
-          <h1 class="deals-title">HISTORIAL DE <span>RÉCORDS ATL</span></h1>
-          <div style="font-size:12px;color:var(--subtext)" id="atl-count-line">Cargando mínimos históricos...</div>
+          <h1 class="deals-title">MÍNIMOS HISTÓRICOS <span>(ATL · ALL-TIME LOW)</span></h1>
+          <div style="font-size:12px;color:var(--subtext)" id="atl-count-line">Cargando el precio más bajo en toda la historia de cada juego en Steam...</div>
         </div>
         <button type="button" class="btn-danger" id="btn-atl-clear">🗑 Limpiar Historial</button>
       </div>
@@ -316,7 +316,7 @@
       <div class="deals-container view-normal">
         ${items.map(a => `
           <article class="deal-card-item is-atl" data-appid="${esc(a.appid)}" style="cursor:pointer">
-            <img class="deal-cover" src="https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${esc(a.appid)}/header.jpg" alt="${esc(a.titulo)}" loading="lazy" />
+            <img class="deal-cover" src="${esc(ui().steamCoverUrl(a.appid, a.cover_url))}" alt="${esc(a.titulo)}" loading="lazy" onerror="window.SteamScopeUI.handleSteamImgError(this, '${esc(a.appid)}', this.alt)" />
             <div class="deal-body">
               <div class="deal-badges-row"><span class="d-badge atl">⭐ RÉCORD HISTÓRICO</span></div>
               <div class="deal-title">${esc(a.titulo)}</div>
@@ -543,7 +543,7 @@
           <div class="deals-container view-compact">
             ${items.map(g => `
               <article class="deal-card-item" data-appid="${esc(g.appid)}" style="cursor:pointer">
-                <img class="deal-cover" src="${esc(g.thumb_url)}" alt="${esc(g.titulo)}" loading="lazy" />
+                <img class="deal-cover" src="${esc(ui().steamCoverUrl(g.appid, g.cover_url))}" alt="${esc(g.titulo)}" loading="lazy" onerror="window.SteamScopeUI.handleSteamImgError(this, '${esc(g.appid)}', this.alt)" />
                 <div class="deal-body">
                   <div class="deal-badges-row">
                     ${g.horas < 0.1 ? `<span class="d-badge">🆕 Sin estrenar</span>` : `<span class="d-badge deck">⏱️ ${g.horas} hs</span>`}

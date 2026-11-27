@@ -1,5 +1,5 @@
 """
-Módulo de Gestión y Valorización de Cromos de Steam para SteamScope 2.0 (SRP / Core Puro).
+Módulo de Gestión y Valorización de Cromos de Steam para SteamScope (SRP / Core Puro).
 Analiza el inventario público de Steam del usuario, detecta cromos coleccionables
 y calcula el saldo neto de billetera recuperable tras comisiones de mercado (15%).
 """

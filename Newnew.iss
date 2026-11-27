@@ -1,10 +1,12 @@
 ; =======================================================
-; Script de Instalación Profesional Completo - SteamScope v2.0.1
+; Script de Instalación Profesional Completo - SteamScope v3.0.1
 ; Desarrollado por Patoma89
 ; =======================================================
 
 #define MyAppName "SteamScope"
-#define MyAppVersion "2.0.1"
+#ifndef MyAppVersion
+#define MyAppVersion "3.0.1"
+#endif
 #define MyAppPublisher "Patoma89"
 #define MyAppURL "https://github.com/Patoma89/SteamScope"
 #define MyAppExeName "SteamScope.exe"
@@ -20,13 +22,14 @@ AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
 
 ; Forzar actualización sobre la misma carpeta sin duplicar
-PrivilegesRequired=lowest
+PrivilegesRequired=admin
 DefaultDirName={autopf}\{#MyAppName}
 UsePreviousAppDir=yes
 DisableDirPage=auto
 DefaultGroupName={#MyAppName}
 UsePreviousGroup=yes
 DisableProgramGroupPage=auto
+UsePreviousTasks=yes
 AllowNoIcons=yes
 
 ; Configuración del instalador final
@@ -49,31 +52,46 @@ Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
 Type: files; Name: "{app}\SteamScope_*.exe"
 Type: files; Name: "{app}\*.old"
 Type: files; Name: "{app}\*.tmp"
+Type: filesandordirs; Name: "{app}\_internal"
 
 [Files]
 ; Archivo ejecutable único generado por PyInstaller en modo --onefile
 Source: "dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "icono.ico"; DestDir: "{app}"; Flags: ignoreversion
 
+[Tasks]
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
+
 [Icons]
 ; Accesos directos en el menú de inicio y escritorio (apuntando a WorkingDir)
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\icono.ico"; WorkingDir: "{app}"
-Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\icono.ico"; WorkingDir: "{app}"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\icono.ico"; WorkingDir: "{app}"; Tasks: desktopicon
 Name: "{group}\Desinstalar {#MyAppName}"; Filename: "{uninstallexe}"
 
 [Run]
 ; Opción para ejecutar la app al terminar la instalación (también al actualizar con /SILENT)
-Filename: "{app}\{#MyAppExeName}"; Description: "Ejecutar SteamScope al finalizar"; Flags: nowait postinstall
+Filename: "{app}\{#MyAppExeName}"; Description: "Ejecutar SteamScope al finalizar"; Flags: nowait postinstall runasoriginaluser
 
 [Code]
-// Limpieza de variables de entorno heredadas de PyInstaller (_MEIPASS2)
-function SetEnvironmentVariable(lpName: String; lpValue: String): Boolean;
+// Limpieza de variables de entorno heredadas de PyInstaller (_MEIPASS2 / _PYI_*)
+function DeleteEnvironmentVariable(lpName: String; lpValue: NativeInt): Boolean;
 external 'SetEnvironmentVariableW@kernel32.dll stdcall';
+
+procedure LimpiarEntornoPyInstaller();
+begin
+  DeleteEnvironmentVariable('_MEIPASS', 0);
+  DeleteEnvironmentVariable('_MEIPASS2', 0);
+  DeleteEnvironmentVariable('_PYI_APPLICATION_HOME_DIR', 0);
+  DeleteEnvironmentVariable('_PYI_ARCHIVE_FILE', 0);
+  DeleteEnvironmentVariable('_PYI_PARENT_PROCESS_LEVEL', 0);
+  DeleteEnvironmentVariable('_PYI_SPLASH_IPC', 0);
+  DeleteEnvironmentVariable('PYTHONHOME', 0);
+  DeleteEnvironmentVariable('PYTHONPATH', 0);
+end;
 
 function InitializeSetup(): Boolean;
 begin
-  SetEnvironmentVariable('_MEIPASS2', '');
-  SetEnvironmentVariable('_MEIPASS', '');
+  LimpiarEntornoPyInstaller();
   Result := True;
 end;
 
@@ -83,8 +101,8 @@ var
   UninstCmd: String;
   ResultCode: Integer;
 begin
-  if RegQueryStringValue(RootKey, SubKey, 'QuietUninstallString', UninstCmd) or
-     RegQueryStringValue(RootKey, SubKey, 'UninstallString', UninstCmd) then
+  if RegQueryStringValue(RootKey, SubKey, 'UninstallString', UninstCmd) or
+     RegQueryStringValue(RootKey, SubKey, 'QuietUninstallString', UninstCmd) then
   begin
     UninstCmd := RemoveQuotes(UninstCmd);
     if FileExists(UninstCmd) then
@@ -99,16 +117,16 @@ function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   ResultCode: Integer;
 begin
-  SetEnvironmentVariable('_MEIPASS2', '');
-  SetEnvironmentVariable('_MEIPASS', '');
+  LimpiarEntornoPyInstaller();
 
   // 1. Cerrar procesos activos de SteamScope para liberar archivos bloqueados
-  Exec('taskkill.exe', '/F /IM SteamScope.exe /T', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-  Sleep(400);
+  Exec('taskkill.exe', '/F /IM SteamScope.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Sleep(600);
 
   // 2. Limpiar versiones antiguas que se hayan instalado con nombres o IDs previos
   DesinstalarVersionHeredada(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\SteamScope_is1');
   DesinstalarVersionHeredada(HKLM, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\SteamScope_is1');
+  DesinstalarVersionHeredada(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{D37E88E4-7E4A-4A7B-943E-2A4F9F24A5D1}_is1');
 
   Result := '';
 end;

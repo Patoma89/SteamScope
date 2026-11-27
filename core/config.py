@@ -6,7 +6,7 @@ import threading
 import winsound
 
 # ================= CONSTANTES Y CONFIGURACIÓN =================
-APP_VERSION = "2.0.1"
+APP_VERSION = "3.0.1"
 APP_NAME = "SteamScope"
 
 UPDATE_JSON_URL = "https://raw.githubusercontent.com/Patoma89/SteamScope/main/version.json"
@@ -14,6 +14,28 @@ GITHUB_API_RELEASES = "https://api.github.com/repos/Patoma89/SteamScope/releases
 FALLBACK_RELEASES_WEB = "https://github.com/Patoma89/SteamScope/releases"
 
 PATCH_NOTES = [
+    {
+        "version": "v3.0.1",
+        "fecha": "Noviembre 2026",
+        "cambios": [
+            "🎛️ Centro de Mando Bento en 3 columnas equilibradas sin huecos vacíos: Watchlist dinámica con miniaturas (hasta 20 juegos), Top 5 Más Jugados, Próximo Evento Steam y botón rápido de comprobación ATL.",
+            "💵 Dólar unificado en 1 sola petición (DolarAPI + respaldos CriptoYa y Bluelytics), caché TTL de 30 min, chip clickeable en el HUD, Dólar MEP y presets de impuestos AR (51% por defecto).",
+            "🖼️ Resolución automática con caché SQLite (app_covers) para portadas con hash SHA-1 de juegos nuevos de Steam (como Escape from Tarkov y Resident Evil Requiem) en Biblioteca, Watchlist, Ofertas, Ficha, Versus y Ruleta.",
+            "🎁 Radar Multi-Tienda con catálogo en vivo de GOG (juegos gratis y top ofertas DRM-Free) y actualización de moneda en tiempo real en todas las pestañas.",
+            "🎰 Ruleta con selector de 1 / 3 / 5 juegos + modo Backlog con contador en vivo, Dashboard con 4 KPIs financieros y escaneo en 1 clic, e instalador blindado contra variables _PYI_*."
+        ]
+    },
+    {
+        "version": "v3.0.0",
+        "fecha": "Noviembre 2026",
+        "cambios": [
+            "🚀 SteamScope 3.0 NEXT: Nueva interfaz GPU-Acelerada con Edge WebView2 (Obsidian Glassmorphism) fluida a 60 FPS.",
+            "🎛️ Centro de Mando Bento con anillos SVG en vivo, Spotlight global (Ctrl+K) y soporte completo para las 8+ Skins dinámicas.",
+            "🖼️ Ficha Técnica Pro renovada con Lightbox HD táctico (zoom con rueda, pan, flechas y F11) y Comparador Versus 1v1.",
+            "🎮 Soporte completo para Radar Epic & GOG, Watchlist con metas, Biblioteca Co-op, Cromos, Ruleta 60 FPS, XInput y Centinela ATL en bandeja.",
+            "🧩 Arquitectura desacoplada v3: puente JSON puro (`web_bridge/`) sin dependencias de Tkinter/CustomTkinter y empaquetado liviano (`SteamScope_v3.spec`)."
+        ]
+    },
     {
         "version": "v2.0.1",
         "fecha": "Noviembre 2026",
@@ -654,12 +676,15 @@ class ConfigManager:
     """Repositorio de configuración persistente en JSON (SRP)."""
     def __init__(self, config_path=None):
         self.config_path = config_path or os.path.join(obtener_ruta_appdata(), "config.json")
+        self._lock = threading.Lock()
         self.datos = self.cargar()
 
     def cargar(self):
         defaults = {
-            "steam_id": "", "steam_api_key": "", "impuestos_pct": 60, "dolar_referencia": 1000.0,
-            "dolar_cripto_ref": 1150.0, "umbral_alerta_pct": 50, "minimizar_a": "Preguntar",
+            "steam_id": "", "steam_api_key": "", "impuestos_pct": 51, "dolar_referencia": 1000.0,
+            "dolar_cripto_ref": 1150.0, "dolar_mep_ref": 1150.0,
+            "fx_updated_at": "", "fx_updated_ts": 0.0, "fx_source": "Manual",
+            "umbral_alerta_pct": 50, "minimizar_a": "Preguntar",
             "vista_resultados": "Normal", "tema": "Oscuro", "sfx_enabled": True, "moneda": "USD",
             "update_url": UPDATE_JSON_URL, "busquedas_recientes": [], "filtro_favorito": {},
             "carrito_guardado": {}, "discord_webhook": "", "metodo_pago_defecto": "Tarjeta",
@@ -695,8 +720,19 @@ class ConfigManager:
         self._persistir()
 
     def _persistir(self):
-        try:
-            with open(self.config_path, 'w', encoding='utf-8') as f:
-                json.dump(self.datos, f, indent=4)
-        except Exception:
-            pass
+        with self._lock:
+            tmp_path = f"{self.config_path}.tmp"
+            try:
+                parent_dir = os.path.dirname(self.config_path)
+                if parent_dir:
+                    os.makedirs(parent_dir, exist_ok=True)
+                snapshot = dict(self.datos)
+                with open(tmp_path, 'w', encoding='utf-8') as f:
+                    json.dump(snapshot, f, indent=4)
+                os.replace(tmp_path, self.config_path)
+            except Exception:
+                try:
+                    if os.path.exists(tmp_path):
+                        os.remove(tmp_path)
+                except Exception:
+                    pass

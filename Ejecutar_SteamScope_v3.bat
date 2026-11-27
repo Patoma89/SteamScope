@@ -2,11 +2,6 @@
 title Iniciando SteamScope 3.0 NEXT (GPU WebView2)...
 cd /d "%~dp0"
 
-if exist "C:\Users\INFORMES1\AppData\Local\Python\pythoncore-3.14-64\python.exe" (
-    "C:\Users\INFORMES1\AppData\Local\Python\pythoncore-3.14-64\python.exe" SteamScope_v3.py
-    goto :check_err
-)
-
 if exist "%LOCALAPPDATA%\Python\pythoncore-3.14-64\python.exe" (
     "%LOCALAPPDATA%\Python\pythoncore-3.14-64\python.exe" SteamScope_v3.py
     goto :check_err

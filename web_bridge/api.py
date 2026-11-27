@@ -2,7 +2,14 @@
 Puente Backend JSON puro para SteamScope 3.0 NEXT (Edge WebView2 + pywebview).
 Consume exclusivamente la capa core/ sin importar Tkinter, CustomTkinter ni pywebview.
 """
+import os
+import subprocess
+import sys
+import tempfile
+import threading
+import time
 import webbrowser
+from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional
 
 from core.api_client import HTTP_SESSION, SteamAPIClient
@@ -10,8 +17,10 @@ from core.config import (
     APP_NAME,
     APP_VERSION,
     FALLBACK_RELEASES_WEB,
+    GITHUB_API_RELEASES,
     PATCH_NOTES,
     SKIN_PALETTES,
+    STEAM_CALENDAR,
     UPDATE_JSON_URL,
     ConfigManager,
     SoundManager,
@@ -30,7 +39,7 @@ _QUICK_NAVIGATION_ITEMS = [
     {"id": "command_center", "title": "Centro de Mando", "subtitle": "Vista general, métricas y accesos rápidos", "tab": "command_center"},
     {"id": "deals", "title": "Ofertas y Búsqueda", "subtitle": "Explorar descuentos de Steam con precios ARS/USD", "tab": "deals"},
     {"id": "radar", "title": "Radar Epic & GOG", "subtitle": "Juegos 100% gratis semanales y promociones", "tab": "radar"},
-    {"id": "atl", "title": "Récords ATL", "subtitle": "Historial de mínimos históricos detectados", "tab": "atl"},
+    {"id": "atl", "title": "Mínimos Históricos (ATL)", "subtitle": "Historial de mínimos históricos (All-Time Low) detectados", "tab": "atl"},
     {"id": "watchlist", "title": "Mi Watchlist", "subtitle": "Seguimiento de precios objetivo y rebajas", "tab": "watchlist"},
     {"id": "library", "title": "Mi Biblioteca & Co-op", "subtitle": "Caché SQLite, valuador de cuenta y cruce Co-op", "tab": "library"},
     {"id": "cards", "title": "Gestor de Cromos", "subtitle": "Valorización de inventario y saldo financiable", "tab": "cards"},
@@ -63,6 +72,8 @@ class SteamScopeWebAPI(WebAPIDealsMixin, WebAPIFichaMixin, WebAPIAccountMixin, W
         on_toggle_topmost: Optional[Callable[[bool], None]] = None,
         on_open_url: Optional[Callable[[str], Any]] = None,
         on_save_dialog: Optional[Callable[[str, str], Optional[str]]] = None,
+        on_quit: Optional[Callable[[], None]] = None,
+        on_update_progress: Optional[Callable[[float, str], None]] = None,
     ) -> None:
         self.db = db if db is not None else DatabaseManager()
         self.config = config if config is not None else ConfigManager()
@@ -71,23 +82,38 @@ class SteamScopeWebAPI(WebAPIDealsMixin, WebAPIFichaMixin, WebAPIAccountMixin, W
         self._on_toggle_topmost = on_toggle_topmost
         self._on_open_url = on_open_url
         self._on_save_dialog = on_save_dialog
+        self._on_quit = on_quit
+        self._on_update_progress = on_update_progress
         self._always_on_top = False
         self._deals_data: List[Dict[str, Any]] = []
         self._watchlist_live_status: Dict[str, Dict[str, Any]] = {}
         self._friend_appids: set = set()
         self._friend_id: str = ""
+        self._update_lock = threading.Lock()
+        self._update_state: Dict[str, Any] = {
+            "running": False,
+            "pct": 0.0,
+            "status": "",
+            "error": "",
+            "done": False,
+        }
 
     def _get_fx_values(self) -> Dict[str, Any]:
         d = self.config.datos
         dolar_base = float(d.get("dolar_referencia", 1000.0) or 1000.0)
         dolar_cripto = float(d.get("dolar_cripto_ref", round(dolar_base * 1.15)) or round(dolar_base * 1.15))
-        impuestos_pct = float(d.get("impuestos_pct", 60) if d.get("impuestos_pct") is not None else 60)
+        dolar_mep = float(d.get("dolar_mep_ref", dolar_cripto) or dolar_cripto)
+        impuestos_pct = float(d.get("impuestos_pct", 51) if d.get("impuestos_pct") is not None else 51)
         moneda = _normalize_moneda(d.get("moneda", "USD"))
         return {
             "dolar_referencia": dolar_base,
             "dolar_cripto_ref": dolar_cripto,
+            "dolar_mep_ref": dolar_mep,
             "impuestos_pct": impuestos_pct,
             "moneda": moneda,
+            "fx_updated_at": str(d.get("fx_updated_at", "") or ""),
+            "fx_updated_ts": float(d.get("fx_updated_ts", 0.0) or 0.0),
+            "fx_source": str(d.get("fx_source", "Manual") or "Manual"),
         }
 
     def get_bootstrap(self) -> Dict[str, Any]:
@@ -150,6 +176,8 @@ class SteamScopeWebAPI(WebAPIDealsMixin, WebAPIFichaMixin, WebAPIAccountMixin, W
 
         wl_rows = self.db.get_all_watchlist() or []
         target_cnt = sum(1 for r in wl_rows if float(r[6] or 0.0) > 0.0)
+        wl_slice = wl_rows[:20]
+        wl_covers = self.db.get_cover_urls_batch([r[0] for r in wl_slice]) or {}
         watchlist_preview = [
             {
                 "appid": str(r[0]),
@@ -159,21 +187,25 @@ class SteamScopeWebAPI(WebAPIDealsMixin, WebAPIFichaMixin, WebAPIAccountMixin, W
                 "link": str(r[4] or f"https://store.steampowered.com/app/{r[0]}"),
                 "tag": str(r[5] or ""),
                 "target_price": float(r[6] or 0.0),
+                "cover_url": wl_covers.get(str(r[0]), ""),
             }
-            for r in wl_rows[:8]
+            for r in wl_slice
         ]
 
         backlog_metrics = self.db.obtener_metricas_backlog() or {}
         library_rows = self.db.get_library_cached() or []
         library_sorted = sorted(library_rows, key=lambda x: float(x.get("horas", 0.0) or 0.0), reverse=True)
+        top_slice = library_sorted[:6]
+        top_covers = self.db.get_cover_urls_batch([g.get("appid") for g in top_slice]) or {}
         top_games = [
             {
                 "appid": str(g.get("appid", "")),
                 "titulo": str(g.get("titulo", "")),
                 "horas": round(float(g.get("horas", 0.0) or 0.0), 1),
                 "price_usd": float(g.get("price_usd", -1.0) if g.get("price_usd") is not None else -1.0),
+                "cover_url": top_covers.get(str(g.get("appid", "")), ""),
             }
-            for g in library_sorted[:6]
+            for g in top_slice
         ]
 
         carrito = self.config.datos.get("carrito_guardado", {}) or {}
@@ -183,6 +215,40 @@ class SteamScopeWebAPI(WebAPIDealsMixin, WebAPIFichaMixin, WebAPIAccountMixin, W
         ahorro_usd = max(0.0, tot_reg - tot_usd)
         budget_usd = float(self.config.datos.get("presupuesto_carrito_usd", 0.0) or 0.0)
         budget_pct = round((tot_usd / budget_usd) * 100.0, 1) if budget_usd > 0 else 0.0
+
+        now_utc = datetime.now(timezone.utc)
+        next_event = None
+        upcoming_candidates = []
+        for ev in STEAM_CALENDAR:
+            try:
+                start_dt = datetime.fromisoformat(ev["start"].replace("Z", "+00:00"))
+                end_dt = datetime.fromisoformat(ev["end"].replace("Z", "+00:00"))
+            except Exception:
+                continue
+            if start_dt <= now_utc <= end_dt:
+                next_event = {
+                    "name": ev["name"],
+                    "type": ev.get("type", "Major"),
+                    "status": "active",
+                    "days_left": max(0, (end_dt - now_utc).days),
+                    "start_display": start_dt.strftime("%d/%m/%Y"),
+                    "end_display": end_dt.strftime("%d/%m/%Y"),
+                }
+                break
+            if now_utc < start_dt:
+                upcoming_candidates.append((start_dt, end_dt, ev))
+
+        if next_event is None and upcoming_candidates:
+            upcoming_candidates.sort(key=lambda t: t[0])
+            start_dt, end_dt, ev = upcoming_candidates[0]
+            next_event = {
+                "name": ev["name"],
+                "type": ev.get("type", "Major"),
+                "status": "upcoming",
+                "days_left": max(1, (start_dt - now_utc).days),
+                "start_display": start_dt.strftime("%d/%m/%Y"),
+                "end_display": end_dt.strftime("%d/%m/%Y"),
+            }
 
         return {
             "atl": {
@@ -214,6 +280,7 @@ class SteamScopeWebAPI(WebAPIDealsMixin, WebAPIFichaMixin, WebAPIAccountMixin, W
                 "budget_pct": budget_pct,
             },
             "fx": fx,
+            "next_event": next_event,
         }
 
     def set_skin(self, skin_name: str) -> Dict[str, Any]:
@@ -337,39 +404,180 @@ class SteamScopeWebAPI(WebAPIDealsMixin, WebAPIFichaMixin, WebAPIAccountMixin, W
         return PATCH_NOTES
 
     def check_updates(self) -> Dict[str, Any]:
-        """Consulta GitHub version.json comparando con APP_VERSION sin lanzar excepciones."""
+        """Consulta GitHub version.json (con fallback a Releases API) comparando con APP_VERSION sin lanzar excepciones."""
         update_url = str(self.config.datos.get("update_url") or UPDATE_JSON_URL)
+        last_error: Optional[str] = None
+        latest_raw = ""
+        download_url = ""
+        notas: List[str] = []
+
         try:
             resp = HTTP_SESSION.get(update_url, timeout=5)
-            if resp.status_code != 200:
-                return {
-                    "ok": False,
-                    "has_update": False,
-                    "current_version": APP_VERSION,
-                    "error": f"HTTP {resp.status_code}",
-                    "fallback_url": FALLBACK_RELEASES_WEB,
-                }
-            data = resp.json() or {}
-            latest_raw = str(data.get("version") or APP_VERSION)
-            latest_clean = latest_raw.lstrip("vV")
-            has_update = _parse_version_tuple(latest_clean) > _parse_version_tuple(APP_VERSION)
-            return {
-                "ok": True,
-                "has_update": has_update,
-                "current_version": APP_VERSION,
-                "latest_version": latest_clean,
-                "url": str(data.get("url") or FALLBACK_RELEASES_WEB),
-                "notas": list(data.get("notas") or []),
-                "fallback_url": FALLBACK_RELEASES_WEB,
-            }
+            if resp.status_code == 200:
+                data = resp.json() or {}
+                if data.get("version"):
+                    latest_raw = str(data.get("version"))
+                    download_url = str(data.get("url") or FALLBACK_RELEASES_WEB)
+                    raw_notas = data.get("notas") or data.get("changelog") or []
+                    if isinstance(raw_notas, list):
+                        notas = [str(n) for n in raw_notas if str(n).strip()]
+                    elif isinstance(raw_notas, str):
+                        notas = [ln.strip() for ln in raw_notas.splitlines() if ln.strip()]
+                else:
+                    last_error = "version.json sin campo 'version'"
+            else:
+                last_error = f"HTTP {resp.status_code}"
         except Exception as exc:
+            last_error = str(exc)
+
+        if not latest_raw:
+            try:
+                r_gh = HTTP_SESSION.get(GITHUB_API_RELEASES, timeout=5)
+                if r_gh.status_code == 200:
+                    gh_data = r_gh.json() or {}
+                    tag = str(gh_data.get("tag_name") or "").strip()
+                    if tag:
+                        latest_raw = tag
+                        setup_url = None
+                        exe_url = None
+                        for asset in gh_data.get("assets", []) or []:
+                            if not isinstance(asset, dict):
+                                continue
+                            aname = str(asset.get("name") or "").lower()
+                            if aname.endswith(".exe"):
+                                if "setup" in aname or "instalador" in aname:
+                                    setup_url = asset.get("browser_download_url")
+                                    break
+                                if not exe_url:
+                                    exe_url = asset.get("browser_download_url")
+                        download_url = str(setup_url or exe_url or gh_data.get("html_url") or FALLBACK_RELEASES_WEB)
+                        body_txt = str(gh_data.get("body") or "")
+                        notas = [ln.strip() for ln in body_txt.splitlines() if ln.strip()]
+                    else:
+                        last_error = "Release sin tag_name"
+                else:
+                    last_error = f"HTTP {r_gh.status_code}"
+            except Exception as exc:
+                last_error = str(exc)
+
+        if not latest_raw:
             return {
                 "ok": False,
                 "has_update": False,
                 "current_version": APP_VERSION,
-                "error": str(exc),
+                "error": last_error or "Error desconocido",
                 "fallback_url": FALLBACK_RELEASES_WEB,
             }
+
+        latest_clean = latest_raw.lstrip("vV")
+        has_update = _parse_version_tuple(latest_clean) > _parse_version_tuple(APP_VERSION)
+        return {
+            "ok": True,
+            "has_update": has_update,
+            "current_version": APP_VERSION,
+            "latest_version": latest_clean,
+            "url": download_url or FALLBACK_RELEASES_WEB,
+            "notas": notas,
+            "fallback_url": FALLBACK_RELEASES_WEB,
+        }
+
+    def get_update_progress(self) -> Dict[str, Any]:
+        """Devuelve el estado actual de descarga e instalación de la actualización."""
+        with self._update_lock:
+            return dict(self._update_state)
+
+    def _set_update_state(self, **kwargs: Any) -> None:
+        with self._update_lock:
+            self._update_state.update(kwargs)
+            pct = float(self._update_state.get("pct", 0.0))
+            status = str(self._update_state.get("status", ""))
+        if self._on_update_progress is not None:
+            try:
+                self._on_update_progress(pct, status)
+            except Exception:
+                pass
+
+    def download_and_install_update(self, download_url: str) -> Dict[str, Any]:
+        """Descarga el Setup oficial en segundo plano, valida su firma PE y lanza la actualización silenciosa."""
+        url = (download_url or "").strip()
+        if not url.lower().startswith("https://") or not url.lower().endswith(".exe"):
+            return {"ok": False, "error": "URL de instalador inválida (debe ser HTTPS y terminar en .exe)."}
+
+        with self._update_lock:
+            if self._update_state.get("running"):
+                return {"ok": False, "error": "Ya hay una descarga de actualización en curso."}
+            self._update_state = {
+                "running": True,
+                "pct": 0.0,
+                "status": "Iniciando descarga...",
+                "error": "",
+                "done": False,
+            }
+
+        threading.Thread(target=self._run_update_download, args=(url,), daemon=True).start()
+        return {"ok": True, "started": True}
+
+    def _run_update_download(self, url_exe: str) -> None:
+        destino = os.path.join(tempfile.gettempdir(), "SteamScope_Update_Setup.exe")
+        try:
+            r = HTTP_SESSION.get(url_exe, stream=True, timeout=20)
+            if r.status_code != 200:
+                raise RuntimeError(f"Error HTTP {r.status_code} al descargar el instalador.")
+
+            total_len = int(r.headers.get("content-length", 0) or 0)
+            descargado = 0
+            with open(destino, "wb") as f:
+                for chunk in r.iter_content(chunk_size=65536):
+                    if not chunk:
+                        continue
+                    f.write(chunk)
+                    descargado += len(chunk)
+                    if total_len > 0:
+                        pct = round(min(99.0, (descargado / total_len) * 100.0), 1)
+                        self._set_update_state(pct=pct, status="Descargando instalador...")
+
+            if descargado < 1024 * 1024:
+                try:
+                    if os.path.exists(destino):
+                        os.remove(destino)
+                except OSError:
+                    pass
+                raise RuntimeError("El archivo descargado está incompleto o no es un instalador válido.")
+
+            with open(destino, "rb") as f_chk:
+                if f_chk.read(2) != b"MZ":
+                    try:
+                        if os.path.exists(destino):
+                            os.remove(destino)
+                    except OSError:
+                        pass
+                    raise RuntimeError("El archivo descargado no es un ejecutable válido de Windows.")
+
+            clean_env = os.environ.copy()
+            for k in list(clean_env.keys()):
+                if "_MEI" in k or k.startswith("_PYI_") or k.startswith("PYTHON"):
+                    clean_env.pop(k, None)
+
+            creationflags = 0
+            if sys.platform.startswith("win"):
+                creationflags = 0x00000008 | 0x00000200  # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
+
+            subprocess.Popen(
+                [destino, "/SILENT"],
+                env=clean_env,
+                creationflags=creationflags,
+                close_fds=True,
+            )
+
+            self._set_update_state(pct=100.0, status="Instalando actualización...", done=True, running=False)
+            time.sleep(0.6)
+            if self._on_quit is not None:
+                try:
+                    self._on_quit()
+                except Exception:
+                    pass
+        except Exception as exc:
+            self._set_update_state(running=False, done=False, error=str(exc), status="Error al actualizar")
 
     def open_external_url(self, url: str) -> Dict[str, Any]:
         """Abre un enlace externo validando esquema seguro."""
@@ -384,3 +592,30 @@ class SteamScopeWebAPI(WebAPIDealsMixin, WebAPIFichaMixin, WebAPIAccountMixin, W
             return {"ok": True, "url": cleaned}
         except Exception as exc:
             return {"ok": False, "error": str(exc)}
+
+    def resolve_steam_cover(self, appid: str) -> Dict[str, Any]:
+        """Resuelve y cachea en SQLite la portada oficial real (incluye rutas con hash SHA-1)."""
+        aid = str(appid or "").strip()
+        if not aid:
+            return {"ok": False, "appid": "", "url": ""}
+        cached = self.db.get_cover_url(aid)
+        if cached:
+            return {"ok": True, "appid": aid, "url": cached, "cached": True}
+        try:
+            resp = HTTP_SESSION.get(
+                "https://store.steampowered.com/api/appdetails",
+                params={"appids": aid, "filters": "basic"},
+                timeout=5,
+            )
+            if resp.status_code == 200:
+                payload = resp.json() or {}
+                node = payload.get(aid) if isinstance(payload, dict) else None
+                data = node.get("data") if isinstance(node, dict) else None
+                if isinstance(data, dict):
+                    url = str(data.get("header_image") or data.get("capsule_image") or "").strip()
+                    if url:
+                        self.db.save_cover_url(aid, url)
+                        return {"ok": True, "appid": aid, "url": url, "cached": False}
+        except Exception:
+            pass
+        return {"ok": False, "appid": aid, "url": ""}

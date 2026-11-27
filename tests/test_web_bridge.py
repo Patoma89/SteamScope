@@ -1,12 +1,14 @@
+import ast
 import http.client
 import json
 import os
+import sqlite3
 import tempfile
 import unittest
 import zipfile
 from unittest.mock import MagicMock, patch
 
-from core.config import SKIN_PALETTES, ConfigManager
+from core.config import APP_VERSION, PATCH_NOTES, SKIN_PALETTES, ConfigManager
 from core.database import DatabaseManager
 from web_bridge import SteamScopeWebAPI, resolve_web_asset_path, start_local_server
 
@@ -181,6 +183,64 @@ class TestWebBridge(unittest.TestCase):
         self.assertTrue(res["has_update"])
         self.assertEqual(res["latest_version"], "99.0.0")
         self.assertEqual(res["notas"], ["Nueva UI GPU 3.0"])
+
+    def test_version_consistency_with_version_json_and_patch_notes(self):
+        root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        version_json_path = os.path.join(root_dir, "version.json")
+        with open(version_json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        self.assertEqual(APP_VERSION, "3.0.1")
+        self.assertEqual(data["version"].lstrip("vV"), APP_VERSION)
+        self.assertEqual(PATCH_NOTES[0]["version"], f"v{APP_VERSION}")
+        self.assertEqual(self.api.get_bootstrap()["version"], APP_VERSION)
+
+    @patch("web_bridge.api.HTTP_SESSION.get")
+    def test_check_updates_same_version_returns_no_update(self, mock_get):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "version": f"v{APP_VERSION}",
+            "url": "https://github.com/Patoma89/SteamScope/releases/latest",
+            "notas": [],
+        }
+        mock_get.return_value = mock_resp
+
+        res = self.api.check_updates()
+        self.assertTrue(res["ok"])
+        self.assertFalse(res["has_update"])
+        self.assertEqual(res["current_version"], APP_VERSION)
+        self.assertEqual(res["latest_version"], APP_VERSION)
+
+    def test_web_bridge_has_no_ui_or_tkinter_dependency(self):
+        root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        bridge_dir = os.path.join(root_dir, "web_bridge")
+        forbidden_roots = {"tkinter", "customtkinter", "ui", "pandas", "matplotlib"}
+        py_files = [
+            "__init__.py",
+            "api.py",
+            "api_deals.py",
+            "api_ficha.py",
+            "api_account.py",
+            "api_tools.py",
+            "asset_server.py",
+            "tray_v3.py",
+        ]
+        for fname in py_files:
+            fpath = os.path.join(bridge_dir, fname)
+            self.assertTrue(os.path.isfile(fpath), f"Falta archivo esperado: {fpath}")
+            with open(fpath, "r", encoding="utf-8") as f:
+                tree = ast.parse(f.read(), filename=fpath)
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    for alias in node.names:
+                        top = alias.name.split(".")[0]
+                        self.assertNotIn(top, forbidden_roots, f"{fname} importa {alias.name}")
+                        self.assertNotEqual(alias.name, "core.exporters", f"{fname} importa core.exporters")
+                elif isinstance(node, ast.ImportFrom) and node.module:
+                    top = node.module.split(".")[0]
+                    self.assertNotIn(top, forbidden_roots, f"{fname} importa desde {node.module}")
+                    self.assertNotEqual(node.module, "core.exporters", f"{fname} importa desde core.exporters")
 
     def test_deals_metadata_and_presets(self):
         meta = self.api.get_deals_metadata()
@@ -488,27 +548,67 @@ class TestWebBridge(unittest.TestCase):
         self.assertEqual(res["total_cromos"], 10)
         self.assertAlmostEqual(res["valor_neto_usd"], 0.51)
 
-    @patch("web_bridge.api_tools.consultar_dolar_api")
+    @patch("web_bridge.api_tools.obtener_cotizaciones_dolar")
+    @patch("web_bridge.api_tools.obtener_promociones_gog")
     @patch("web_bridge.api_tools.obtener_promociones_epic")
-    def test_radar_epic_events_and_live_fx_mocked(self, mock_epic, mock_fx):
+    def test_radar_epic_events_and_live_fx_mocked(self, mock_epic, mock_gog, mock_fx):
         mock_epic.return_value = [
             {"tienda": "Epic Games", "titulo": "Control", "es_activo": True, "es_proximo": False},
             {"tienda": "Epic Games", "titulo": "Sifu", "es_activo": False, "es_proximo": True},
         ]
+        mock_gog.return_value = {
+            "gratis": [{"tienda": "GOG", "titulo": "Tyrian 2000", "es_gratis": True, "precio_oferta_usd": 0.0}],
+            "ofertas": [{"tienda": "GOG", "titulo": "Witcher 3", "es_gratis": False, "precio_oferta_usd": 5.99, "descuento": 80}],
+        }
         radar = self.api.get_free_games_radar(force_refresh=True)
         self.assertTrue(radar["ok"])
         self.assertEqual(len(radar["activos"]), 1)
         self.assertEqual(len(radar["proximos"]), 1)
+        self.assertEqual(len(radar["gog_gratis"]), 1)
+        self.assertEqual(len(radar["gog_ofertas"]), 1)
 
         ev = self.api.get_steam_events()
         self.assertTrue(ev["ok"])
         self.assertGreaterEqual(len(ev["events"]), 1)
 
-        mock_fx.side_effect = lambda tipo: 1120.0 if tipo == "oficial" else 1280.0
+        mock_fx.return_value = {
+            "ok": True,
+            "oficial": 1120.0,
+            "cripto": 1280.0,
+            "mep": 1250.0,
+            "tarjeta": 1792.0,
+            "source": "DolarAPI",
+            "updated_at": "2026-11-24 10:55",
+        }
         fx_res = self.api.refresh_live_fx()
         self.assertTrue(fx_res["ok"])
+        self.assertFalse(fx_res["cached"])
         self.assertAlmostEqual(fx_res["dolar_referencia"], 1120.0)
         self.assertAlmostEqual(fx_res["dolar_cripto_ref"], 1280.0)
+        self.assertAlmostEqual(fx_res["dolar_mep_ref"], 1250.0)
+        self.assertEqual(fx_res["fx_source"], "DolarAPI")
+
+    @patch("web_bridge.api_tools.obtener_cotizaciones_dolar")
+    def test_refresh_live_fx_ttl_cache(self, mock_fx):
+        mock_fx.return_value = {
+            "ok": True,
+            "oficial": 1130.0,
+            "cripto": 1290.0,
+            "mep": 1260.0,
+            "tarjeta": 1808.0,
+            "source": "DolarAPI",
+            "updated_at": "2026-11-24 10:56",
+        }
+        first = self.api.refresh_live_fx(force=True)
+        self.assertTrue(first["ok"])
+        self.assertFalse(first["cached"])
+        self.assertEqual(mock_fx.call_count, 1)
+
+        second = self.api.refresh_live_fx(force=False, max_age_seconds=1800)
+        self.assertTrue(second["ok"])
+        self.assertTrue(second["cached"])
+        self.assertAlmostEqual(second["dolar_referencia"], 1130.0)
+        self.assertEqual(mock_fx.call_count, 1)
 
     def test_roulette_backlog_and_dashboard_stats(self):
         self.db.save_library_batch([
@@ -523,12 +623,33 @@ class TestWebBridge(unittest.TestCase):
         rl = self.api.spin_roulette(mode="backlog", exclude_appid="20")
         self.assertTrue(rl["ok"])
         self.assertEqual(rl["item"]["appid"], "10")
+        self.assertEqual(len(rl["items"]), 1)
+        self.assertIn("header_url", rl["items"][0])
+
+        self.db.save_library_batch([
+            {"appid": "10", "titulo": "Hades", "horas": 0.0, "minutos": 0, "price_usd": 24.99},
+            {"appid": "20", "titulo": "Balatro", "horas": 35.0, "minutos": 2100, "price_usd": 14.99},
+            {"appid": "30", "titulo": "Hollow Knight", "horas": 0.0, "minutos": 0, "price_usd": 14.99},
+            {"appid": "40", "titulo": "Celeste", "horas": 0.0, "minutos": 0, "price_usd": 19.99},
+        ])
+        rl3 = self.api.spin_roulette(mode="backlog", exclude_appid="20", count=3)
+        self.assertTrue(rl3["ok"])
+        self.assertEqual(len(rl3["items"]), 3)
+        self.assertEqual(rl3["item"], rl3["items"][0])
+        self.assertIn("header_url", rl3["items"][0])
 
         stats = self.api.get_dashboard_stats()
         self.assertTrue(stats["ok"])
         self.assertEqual(stats["deals_total"], 2)
-        self.assertEqual(stats["library_total"], 2)
+        self.assertEqual(stats["library_total"], 4)
         self.assertEqual(stats["top_played"][0]["appid"], "20")
+        self.assertIn("summary", stats)
+        self.assertAlmostEqual(stats["summary"]["total_value_usd"], 74.96)
+        self.assertAlmostEqual(stats["summary"]["avg_discount_pct"], 90.0)
+
+        cc = self.api.get_command_center_data()
+        self.assertIn("next_event", cc)
+        self.assertIsNotNone(cc["next_event"])
 
     def test_settings_blacklist_export_csv_and_backup_zip(self):
         saved = self.api.save_settings({
@@ -567,6 +688,182 @@ class TestWebBridge(unittest.TestCase):
             names = zf.namelist()
         self.assertIn("test_config.json", names)
         self.assertIn("test_cache.db", names)
+
+    @patch("web_bridge.api.HTTP_SESSION.get")
+    def test_check_updates_fallback_to_github_releases(self, mock_get):
+        resp_fail = MagicMock()
+        resp_fail.status_code = 503
+
+        resp_gh = MagicMock()
+        resp_gh.status_code = 200
+        resp_gh.json.return_value = {
+            "tag_name": "v99.1.0",
+            "html_url": "https://github.com/Patoma89/SteamScope/releases/tag/v99.1.0",
+            "body": "Mejora 1\n\nMejora 2",
+            "assets": [
+                {
+                    "name": "SteamScope_v99.1.0_Setup.exe",
+                    "browser_download_url": "https://example.com/SteamScope_v99.1.0_Setup.exe",
+                }
+            ],
+        }
+        mock_get.side_effect = [resp_fail, resp_gh]
+
+        res = self.api.check_updates()
+        self.assertTrue(res["ok"])
+        self.assertTrue(res["has_update"])
+        self.assertEqual(res["latest_version"], "99.1.0")
+        self.assertEqual(res["url"], "https://example.com/SteamScope_v99.1.0_Setup.exe")
+        self.assertEqual(res["notas"], ["Mejora 1", "Mejora 2"])
+        self.assertEqual(mock_get.call_count, 2)
+
+    @patch("web_bridge.api_tools.HTTP_SESSION.post")
+    def test_send_discord_webhook_rating_formatting(self, mock_post):
+        self.cfg.guardar_basico("discord_webhook", "https://discord.com/api/webhooks/test")
+        mock_resp = MagicMock()
+        mock_resp.status_code = 204
+        mock_post.return_value = mock_resp
+
+        res_na = self.api.send_discord_webhook({
+            "appid": "10",
+            "titulo": "Juego Sin Rating",
+            "precio_oferta_usd": 4.99,
+            "descuento": 50,
+            "rating": "N/A",
+        })
+        self.assertTrue(res_na["ok"])
+        payload_na = mock_post.call_args.kwargs["json"]
+        self.assertEqual(payload_na["embeds"][0]["fields"][2]["value"], "N/A")
+
+        res_num = self.api.send_discord_webhook({
+            "appid": "20",
+            "titulo": "Juego Top",
+            "precio_oferta_usd": 9.99,
+            "descuento": 75,
+            "rating": "92",
+        })
+        self.assertTrue(res_num["ok"])
+        payload_num = mock_post.call_args.kwargs["json"]
+        self.assertEqual(payload_num["embeds"][0]["fields"][2]["value"], "92%")
+
+    def test_export_backup_zip_checkpoints_wal(self):
+        self.db.add_watchlist("12345", "Test WAL Game", 9.99, "https://store.steampowered.com/app/12345")
+        zip_path = os.path.join(self.tmp_dir.name, "wal_backup.zip")
+        res = self.api.export_backup_zip(dest_path=zip_path)
+        self.assertTrue(res["ok"])
+
+        extract_dir = os.path.join(self.tmp_dir.name, "extracted")
+        os.makedirs(extract_dir, exist_ok=True)
+        with zipfile.ZipFile(zip_path, "r") as zf:
+            zf.extract("test_cache.db", path=extract_dir)
+
+        extracted_db = os.path.join(extract_dir, "test_cache.db")
+        conn = sqlite3.connect(extracted_db)
+        try:
+            row = conn.execute("SELECT titulo FROM watchlist WHERE appid = ?", ("12345",)).fetchone()
+        finally:
+            conn.close()
+        self.assertIsNotNone(row)
+        self.assertEqual(row[0], "Test WAL Game")
+
+    @patch("web_bridge.api.HTTP_SESSION.get")
+    def test_resolve_steam_cover_caches_and_hydrates_library(self, mock_get):
+        tarkov_url = "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3932890/4dd12ea3/header.jpg"
+        mock_resp = MagicMock(status_code=200)
+        mock_resp.json.return_value = {
+            "3932890": {
+                "success": True,
+                "data": {"header_image": tarkov_url},
+            }
+        }
+        mock_get.return_value = mock_resp
+
+        self.db.save_library_batch([
+            {"appid": "3932890", "titulo": "Escape from Tarkov", "horas": 12.0, "minutos": 720, "price_usd": 49.99},
+        ])
+
+        r1 = self.api.resolve_steam_cover("3932890")
+        self.assertTrue(r1["ok"])
+        self.assertFalse(r1["cached"])
+        self.assertEqual(r1["url"], tarkov_url)
+        self.assertEqual(mock_get.call_count, 1)
+
+        r2 = self.api.resolve_steam_cover("3932890")
+        self.assertTrue(r2["ok"])
+        self.assertTrue(r2["cached"])
+        self.assertEqual(r2["url"], tarkov_url)
+        self.assertEqual(mock_get.call_count, 1)
+
+        lib = self.api.get_library({"page": 1})
+        self.assertEqual(lib["items"][0]["cover_url"], tarkov_url)
+
+    def test_download_and_install_update_rejects_invalid_url(self):
+        res_http = self.api.download_and_install_update("http://example.com/Setup.exe")
+        self.assertFalse(res_http["ok"])
+        res_non_exe = self.api.download_and_install_update("https://github.com/Patoma89/SteamScope/releases")
+        self.assertFalse(res_non_exe["ok"])
+
+    @patch("web_bridge.api.time.sleep")
+    @patch("web_bridge.api.subprocess.Popen")
+    @patch("web_bridge.api.HTTP_SESSION.get")
+    def test_download_and_install_update_streams_validates_and_launches(self, mock_get, mock_popen, _mock_sleep):
+        quit_calls = []
+        api_with_quit = SteamScopeWebAPI(
+            db=self.db,
+            config=self.cfg,
+            sfx=_SilentSFX(),
+            on_quit=lambda: quit_calls.append(True),
+        )
+        pe_bytes = b"MZ" + (b"\x00" * (1024 * 1024 + 64))
+        mock_resp = MagicMock(status_code=200)
+        mock_resp.headers = {"content-length": str(len(pe_bytes))}
+        mock_resp.iter_content.return_value = [pe_bytes[:524288], pe_bytes[524288:]]
+        mock_get.return_value = mock_resp
+
+        with patch.dict(os.environ, {
+            "_MEIPASS2": "C:\\Temp\\_MEI999",
+            "_PYI_APPLICATION_HOME_DIR": "C:\\Temp\\_MEI999",
+            "PYTHONPATH": "C:\\Temp",
+        }):
+            api_with_quit._run_update_download("https://github.com/Patoma89/SteamScope/releases/download/v3.0.1/SteamScope_v3.0.1_Setup.exe")
+
+        prog = api_with_quit.get_update_progress()
+        self.assertTrue(prog["done"])
+        self.assertEqual(prog["error"], "")
+        self.assertAlmostEqual(prog["pct"], 100.0)
+        self.assertEqual(len(quit_calls), 1)
+
+        mock_popen.assert_called_once()
+        args, kwargs = mock_popen.call_args
+        self.assertEqual(args[0][1], "/SILENT")
+        self.assertNotIn("_MEIPASS2", kwargs["env"])
+        self.assertNotIn("_PYI_APPLICATION_HOME_DIR", kwargs["env"])
+        self.assertNotIn("PYTHONPATH", kwargs["env"])
+
+    @patch("web_bridge.api.subprocess.Popen")
+    @patch("web_bridge.api.HTTP_SESSION.get")
+    def test_download_and_install_update_rejects_non_mz_binary(self, mock_get, mock_popen):
+        quit_calls = []
+        api_with_quit = SteamScopeWebAPI(
+            db=self.db,
+            config=self.cfg,
+            sfx=_SilentSFX(),
+            on_quit=lambda: quit_calls.append(True),
+        )
+        bad_bytes = b"HTML" + (b"\x00" * (1024 * 1024 + 64))
+        mock_resp = MagicMock(status_code=200)
+        mock_resp.headers = {"content-length": str(len(bad_bytes))}
+        mock_resp.iter_content.return_value = [bad_bytes]
+        mock_get.return_value = mock_resp
+
+        api_with_quit._run_update_download("https://github.com/Patoma89/SteamScope/releases/download/v3.0.1/SteamScope_v3.0.1_Setup.exe")
+
+        prog = api_with_quit.get_update_progress()
+        self.assertFalse(prog["done"])
+        self.assertFalse(prog["running"])
+        self.assertIn("ejecutable válido", prog["error"])
+        mock_popen.assert_not_called()
+        self.assertEqual(len(quit_calls), 0)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
-import re
 import html
+import math
+import re
 import xml.etree.ElementTree as ET
 import concurrent.futures
 from datetime import datetime
@@ -45,27 +46,160 @@ def resolver_steam_id(input_usuario):
     return limpio
 
 
+def _parse_positive_float(val, min_val=50.0, max_val=100000.0):
+    """Valida que un valor numérico sea finito, positivo y dentro del rango razonable de ARS/USD."""
+    if val is None or isinstance(val, (bool, dict, list)):
+        return None
+    try:
+        num = float(val)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(num) or num <= 0 or num < min_val or num > max_val:
+        return None
+    return num
+
+
+def _extract_criptoya_oficial(data):
+    raw_of = data.get("oficial") if isinstance(data, dict) else None
+    if isinstance(raw_of, dict):
+        for k in ("price", "ask", "venta"):
+            parsed = _parse_positive_float(raw_of.get(k))
+            if parsed is not None:
+                return parsed
+        return None
+    return _parse_positive_float(raw_of)
+
+
+def obtener_cotizaciones_dolar(session=None):
+    """Consulta oficial, cripto, MEP y tarjeta en 1 petición principal con 2 fallbacks resilientes."""
+    sess = session or HTTP_SESSION
+    oficial = None
+    cripto = None
+    mep = None
+    tarjeta = None
+    sources = []
+
+    # 1. Principal: DolarAPI unificado (1 sola petición para todas las cotizaciones)
+    try:
+        r = sess.get("https://dolarapi.com/v1/dolares", timeout=4)
+        if r.status_code == 200:
+            items = r.json()
+            if isinstance(items, list):
+                got_dolarapi = False
+                for item in items:
+                    if not isinstance(item, dict):
+                        continue
+                    casa = str(item.get("casa") or "").lower()
+                    venta = _parse_positive_float(item.get("venta"))
+                    if venta is None:
+                        continue
+                    if casa == "oficial" and oficial is None:
+                        oficial = venta
+                        got_dolarapi = True
+                    elif casa == "cripto" and cripto is None:
+                        cripto = venta
+                        got_dolarapi = True
+                    elif casa == "bolsa" and mep is None:
+                        mep = venta
+                        got_dolarapi = True
+                    elif casa == "tarjeta" and tarjeta is None:
+                        tarjeta = venta
+                        got_dolarapi = True
+                if got_dolarapi:
+                    sources.append("DolarAPI")
+    except Exception:
+        pass
+
+    # 2. Fallback 1: CriptoYa (si falta oficial o cripto)
+    if oficial is None or cripto is None:
+        try:
+            r2 = sess.get("https://criptoya.com/api/dolar", timeout=4)
+            if r2.status_code == 200:
+                data = r2.json()
+                if isinstance(data, dict):
+                    got_criptoya = False
+                    if oficial is None:
+                        parsed_of = _extract_criptoya_oficial(data)
+                        if parsed_of is not None:
+                            oficial = parsed_of
+                            got_criptoya = True
+                    if cripto is None:
+                        cr_node = data.get("cripto")
+                        cr_val = None
+                        if isinstance(cr_node, dict):
+                            usdt = cr_node.get("usdt")
+                            if isinstance(usdt, dict):
+                                cr_val = usdt.get("ask") or usdt.get("price")
+                            if cr_val is None:
+                                cr_val = cr_node.get("price")
+                        parsed_cr = _parse_positive_float(cr_val)
+                        if parsed_cr is not None:
+                            cripto = parsed_cr
+                            got_criptoya = True
+                    if mep is None:
+                        mep_node = data.get("mep")
+                        mep_val = None
+                        if isinstance(mep_node, dict):
+                            al30 = mep_node.get("al30")
+                            if isinstance(al30, dict) and isinstance(al30.get("ci"), dict):
+                                mep_val = al30["ci"].get("price")
+                            if mep_val is None:
+                                mep_val = mep_node.get("price")
+                        parsed_mep = _parse_positive_float(mep_val)
+                        if parsed_mep is not None:
+                            mep = parsed_mep
+                            got_criptoya = True
+                    if got_criptoya:
+                        sources.append("CriptoYa")
+        except Exception:
+            pass
+
+    # 3. Fallback 2: Bluelytics (si aún falta oficial)
+    if oficial is None:
+        try:
+            r3 = sess.get("https://api.bluelytics.com.ar/v2/latest", timeout=4)
+            if r3.status_code == 200:
+                data3 = r3.json()
+                if isinstance(data3, dict) and isinstance(data3.get("oficial"), dict):
+                    parsed_bl = _parse_positive_float(data3["oficial"].get("value_sell"))
+                    if parsed_bl is not None:
+                        oficial = parsed_bl
+                        sources.append("Bluelytics")
+        except Exception:
+            pass
+
+    return {
+        "ok": any(v is not None for v in (oficial, cripto, mep)),
+        "oficial": oficial,
+        "cripto": cripto,
+        "mep": mep,
+        "tarjeta": tarjeta,
+        "source": " + ".join(sources) if sources else "",
+        "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+    }
+
+
 def consultar_dolar_api(tipo="oficial"):
     try:
         r = HTTP_SESSION.get(f"https://dolarapi.com/v1/dolares/{tipo}", timeout=4)
         if r.status_code == 200:
-            venta = r.json().get("venta")
-            if venta:
-                return float(venta)
+            parsed = _parse_positive_float((r.json() or {}).get("venta"))
+            if parsed is not None:
+                return parsed
     except Exception:
         pass
 
     try:
         r2 = HTTP_SESSION.get("https://criptoya.com/api/dolar", timeout=4)
         if r2.status_code == 200:
-            data = r2.json()
+            data = r2.json() or {}
             if tipo == "cripto":
-                val = float(data.get("cripto", {}).get("usdt", {}).get("ask", 0))
-                if val > 0:
+                val = _parse_positive_float(data.get("cripto", {}).get("usdt", {}).get("ask"))
+                if val is not None:
                     return val
             if tipo == "oficial":
-                val = float(data.get("oficial", 0))
-                if val > 0:
+                val = _extract_criptoya_oficial(data)
+                if val is not None:
                     return val
     except Exception:
         pass

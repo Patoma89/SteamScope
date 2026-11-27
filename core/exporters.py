@@ -1,4 +1,3 @@
-import csv
 import re
 import threading
 from datetime import datetime
@@ -11,17 +10,9 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 from core.config import APP_NAME, APP_VERSION
 from core.api_client import HTTP_SESSION
+from core.csv_utils import escribir_csv
 from core.pricing import detectar_suscripcion, evaluar_termometro_compra
 from ui.modals import mostrar_alerta_skin
-
-
-def escribir_csv(ruta_destino, cabeceras, filas):
-    """Escribe un archivo CSV con codificación utf-8-sig para máxima compatibilidad con Microsoft Excel."""
-    with open(ruta_destino, mode="w", newline="", encoding="utf-8-sig") as f:
-        writer = csv.writer(f)
-        writer.writerow(cabeceras)
-        for fila in filas:
-            writer.writerow(fila)
 
 
 class ExportService:

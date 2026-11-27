@@ -1,10 +1,11 @@
 {
-  "version": "v3.0.0",
-  "url": "https://github.com/Patoma89/SteamScope/releases/download/v3.0.0/SteamScope_v3.0.0_Setup.exe",
+  "version": "v3.0.1",
+  "url": "https://github.com/Patoma89/SteamScope/releases/download/v3.0.1/SteamScope_v3.0.1_Setup.exe",
   "notas": [
-    "🚀 Nueva interfaz GPU-Acelerada Edge WebView2 (Obsidian Glassmorphism) a 60 FPS.",
-    "🎛️ Centro de Mando con anillos SVG, Spotlight Ctrl+K y 8+ Skins dinámicas.",
-    "🖼️ Ficha Técnica Pro con Lightbox HD (zoom/pan/F11) y Comparador Versus 1v1.",
-    "🎮 Soporte completo para Radar Epic & GOG, Watchlist, Biblioteca Co-op, Cromos, Ruleta y XInput."
+    "🎛️ Centro de Mando Bento en 3 columnas equilibradas sin huecos, Watchlist con miniaturas y Top 5 Más Jugados.",
+    "💵 Dólar unificado en 1 petición (DolarAPI + CriptoYa/Bluelytics), chip clickeable en HUD, Dólar MEP y 51% impuestos AR.",
+    "🖼️ Resolución automática con caché SQLite para portadas SHA-1 (Escape from Tarkov, Resident Evil Requiem, etc.).",
+    "🎁 Radar con catálogo en vivo de GOG (gratis y ofertas DRM-Free) y cambio de moneda reactivo en todas las pestañas.",
+    "🎰 Ruleta 1/3/5 juegos + Backlog en vivo, Dashboard con KPIs financieros e instalador blindado contra _PYI_*."
   ]
 }

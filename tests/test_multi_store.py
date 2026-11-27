@@ -5,13 +5,20 @@ Pruebas Unitarias para el Módulo de Radar Multi-Tienda (Epic Games Store) de St
 import unittest
 from datetime import datetime, timezone, timedelta
 from unittest.mock import patch, MagicMock
-from core.multi_store import obtener_promociones_epic, _CACHE_EPIC
+from core.multi_store import (
+    _CACHE_EPIC,
+    _CACHE_GOG,
+    obtener_promociones_epic,
+    obtener_promociones_gog,
+)
 
 
 class TestMultiStore(unittest.TestCase):
     def setUp(self):
         _CACHE_EPIC["datos"] = []
         _CACHE_EPIC["timestamp"] = 0.0
+        _CACHE_GOG["datos"] = {"gratis": [], "ofertas": []}
+        _CACHE_GOG["timestamp"] = 0.0
 
     @patch("core.multi_store.HTTP_SESSION.get")
     def test_obtener_promociones_epic_parsing(self, mock_get):
@@ -123,6 +130,62 @@ class TestMultiStore(unittest.TestCase):
         mock_get.side_effect = Exception("Fallo de conexión simulado")
         res = obtener_promociones_epic(forzar_refresco=True)
         self.assertEqual(res, [])
+
+    @patch("core.multi_store.HTTP_SESSION.get")
+    def test_obtener_promociones_gog_parsing(self, mock_get):
+        resp_free = MagicMock(status_code=200)
+        resp_free.json.return_value = {
+            "products": [
+                {
+                    "title": "Daggerfall Unity",
+                    "coverHorizontal": "//images.gog-statics.com/df.png",
+                    "storeLink": "/en/game/daggerfall",
+                    "price": {
+                        "final": "$0.00",
+                        "base": "$0.00",
+                        "discount": None,
+                        "finalMoney": {"amount": "0.00", "currency": "USD"},
+                        "baseMoney": {"amount": "0.00", "currency": "USD"},
+                    },
+                }
+            ]
+        }
+        resp_deals = MagicMock(status_code=200)
+        resp_deals.json.return_value = {
+            "products": [
+                {
+                    "title": "Fallout 4 GOTY",
+                    "coverHorizontal": "https://images.gog-statics.com/fo4.png",
+                    "storeLink": "https://www.gog.com/en/game/fallout_4",
+                    "price": {
+                        "final": "$6.99",
+                        "base": "$27.99",
+                        "discount": "-75%",
+                        "finalMoney": {"amount": "6.99", "currency": "USD"},
+                        "baseMoney": {"amount": "27.99", "currency": "USD"},
+                    },
+                }
+            ]
+        }
+        mock_get.side_effect = [resp_free, resp_deals]
+
+        gog = obtener_promociones_gog(forzar_refresco=True)
+        self.assertEqual(len(gog["gratis"]), 1)
+        self.assertEqual(gog["gratis"][0]["titulo"], "Daggerfall Unity")
+        self.assertEqual(gog["gratis"][0]["imagen_url"], "https://images.gog-statics.com/df.png")
+        self.assertEqual(gog["gratis"][0]["url_tienda"], "https://www.gog.com/en/game/daggerfall")
+        self.assertTrue(gog["gratis"][0]["es_gratis"])
+
+        self.assertEqual(len(gog["ofertas"]), 1)
+        self.assertEqual(gog["ofertas"][0]["titulo"], "Fallout 4 GOTY")
+        self.assertAlmostEqual(gog["ofertas"][0]["precio_oferta_usd"], 6.99)
+        self.assertEqual(gog["ofertas"][0]["descuento"], 75)
+
+    @patch("core.multi_store.HTTP_SESSION.get")
+    def test_obtener_promociones_gog_error_handling(self, mock_get):
+        mock_get.side_effect = Exception("Fallo de red GOG")
+        gog = obtener_promociones_gog(forzar_refresco=True)
+        self.assertEqual(gog, {"gratis": [], "ofertas": []})
 
 
 if __name__ == "__main__":

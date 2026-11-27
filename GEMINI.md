@@ -7,13 +7,16 @@ Este repositorio sigue directrices de ingeniería de software de nivel Senior pa
 ## 🏛️ Arquitectura del Proyecto (Separación Estricta de Capas)
 
 - **`core/` (Lógica de Negocio Pura)**:
-  - Nunca importar CustomTkinter ni Tkinter dentro de `core/`.
+  - Nunca importar CustomTkinter ni Tkinter dentro de `core/` (excepción legacy: `exporters.py` solo para la UI v2; para CSV puro usar `csv_utils.py`).
   - Debe ser 100% testeable mediante tests unitarios en `tests/`.
-  - Módulos: `config.py`, `database.py`, `api_client.py`, `pricing.py`, `exporters.py`.
-- **`ui/` (Capa de Presentación y Gráficos)**:
+  - Módulos: `config.py`, `database.py`, `api_client.py`, `pricing.py`, `filters.py`, `multi_store.py`, `cards_manager.py`, `gamepad.py`, `notifications.py`, `watchdog.py`, `csv_utils.py`, `exporters.py`.
+- **`web_bridge/` + `web_ui/` (SteamScope 3.0 NEXT — Principal)**:
+  - `web_bridge/` expone la API JSON pura para `pywebview` (`api.py`, mixins `api_*.py`, `asset_server.py`, `tray_v3.py`) sin importar Tkinter, CustomTkinter ni `ui/`.
+  - `web_ui/` implementa la interfaz GPU-Acelerada Edge WebView2 (`index.html`, `styles.css`, `app.js`, `views_*.js`).
+- **`SteamScope_v3.py` (Punto de Entrada Principal v3 & `SteamScope_v3.spec`)**.
+- **`ui/` + `SteamScope.py` + `SteamScope.spec` (Capa Legacy v2 CustomTkinter)**:
   - Componentes visuales, diálogos y modales (`modals.py`, `charts.py`, `tray.py`).
   - Todo diálogo o ventana secundaria debe respetar la paleta dinámica activa (`parent.palette`).
-- **`SteamScope.py` (Punto de Entrada & Orquestador UI)**.
 
 ---
 
@@ -41,7 +44,7 @@ Este repositorio sigue directrices de ingeniería de software de nivel Senior pa
   ```
 - Verificación de compilación estricta antes de cada entrega:
   ```powershell
-  py -m py_compile SteamScope.py core\*.py ui\*.py tests\*.py
+  py -m py_compile SteamScope.py SteamScope_v3.py core\*.py web_bridge\*.py ui\*.py tests\*.py
   ```
 
 ---
